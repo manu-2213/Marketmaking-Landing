@@ -15,7 +15,7 @@ _SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-@st.cache_resource
+@st.cache_resource(ttl=300)
 def _get_gsheet():
     """Return the first worksheet of the configured Google Sheet."""
     creds = Credentials.from_service_account_info(
@@ -508,8 +508,7 @@ def render_registration():
                     st.success("**You're in!** We'll send you updates soon.")
                     st.balloons()
                 except Exception as exc:
-                    st.success("**You're in!** We'll send you updates soon.")
-                    st.balloons()
+                    st.error(f"Registration failed: {exc}")
             else:
                 st.warning("Please fill in at least your name and email.")
 
