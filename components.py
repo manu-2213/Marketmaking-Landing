@@ -207,8 +207,7 @@ def render_features():
             <div class="feature-icon feature-icon-2">🎤</div>
             <div class="feature-title">Real Quant Inspiration</div>
             <div class="feature-desc">
-                The closing ceremony features a talk by a quantitative researcher from
-                <strong>UBS</strong> on ML applications in real-world trading and finance.
+                The closing ceremony features a talk by a <strong>Quant / ML Researcher</strong> on ML applications in real-world trading and finance.
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -259,7 +258,7 @@ def render_timeline():
             <div class="step-icon step-icon-4">🎤</div>
             <div class="step-date step-date-4">APR 1</div>
             <div class="step-title">Quant Talk</div>
-            <div class="step-sub">Guest speaker from UBS</div>
+            <div class="step-sub">Quant / ML Researcher talk</div>
         </div>
         <div class="step">
             <div class="step-icon step-icon-5">🏆</div>
