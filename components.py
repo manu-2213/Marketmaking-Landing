@@ -169,7 +169,7 @@ def render_hero():
 
 def render_stats():
     _count = get_team_count()
-    _teams_text = f"{_count}+" if _count > 0 else "0"
+    _teams_text = str(_count)
     st.markdown(f"""
     <div class="stats-banner">
         <div class="stat-card">
