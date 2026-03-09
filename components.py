@@ -44,6 +44,18 @@ def _save_registration(name, email, university, degree, team_name,
     ])
 
 
+@st.cache_data(ttl=120)
+def get_team_count():
+    """Count unique non-empty team names from the registration sheet."""
+    try:
+        ws = _get_gsheet()
+        team_col = ws.col_values(6)  # column F = team_name
+        teams = {t.strip() for t in team_col[1:] if t.strip()}  # skip header
+        return len(teams)
+    except Exception:
+        return 0
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _generate_candlestick_html():
@@ -152,15 +164,17 @@ def render_hero():
 
 
 def render_stats():
-    st.markdown("""
+    _count = get_team_count()
+    _teams_text = f"{_count}+" if _count > 0 else "0"
+    st.markdown(f"""
     <div class="stats-banner">
         <div class="stat-card">
-            <div class="stat-number">HUGE</div>
-            <div class="stat-label">Prizes Announced Soon</div>
+            <div class="stat-number">&pound;300</div>
+            <div class="stat-label">Prize Pool</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">50+</div>
-            <div class="stat-label">Teams Expected</div>
+            <div class="stat-number">{_teams_text}</div>
+            <div class="stat-label">Teams Signed Up</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">LIVE</div>
@@ -441,8 +455,8 @@ def render_prizes():
     st.markdown("""
     <div class="prize-banner">
         <div style="font-size:3.5rem;margin-bottom:16px;">🏆</div>
-        <div class="prize-title">PRIZES COMING SOON</div>
-        <div class="prize-sub">Big rewards, special awards, and bragging rights across London universities.</div>
+        <div class="prize-title">&pound;300 PRIZE POOL</div>
+        <div class="prize-sub">Cash prizes, special awards, and bragging rights across London universities.</div>
         <div class="prize-categories">
             <span class="prize-cat" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.25);color:#67e8f9;">Top 3 Teams</span>
             <span class="prize-cat" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);color:#c4b5fd;">Best Strategy</span>
