@@ -46,12 +46,16 @@ def _save_registration(name, email, university, degree, team_name,
 
 @st.cache_data(ttl=120)
 def get_team_count():
-    """Count unique non-empty team names from the registration sheet."""
+    """Count total registrations (rows after the header)."""
     try:
-        ws = _get_gsheet()
-        team_col = ws.col_values(6)  # column F = team_name
-        teams = {t.strip() for t in team_col[1:] if t.strip()}  # skip header
-        return len(teams)
+        creds = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"], scopes=_SCOPES
+        )
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_key(st.secrets["sheets"]["spreadsheet_id"])
+        ws = sh.sheet1
+        all_rows = ws.get_all_values()
+        return max(len(all_rows) - 1, 0)  # subtract header row
     except Exception:
         return 0
 
