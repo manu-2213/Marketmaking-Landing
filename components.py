@@ -460,7 +460,7 @@ def render_prizes():
     <div class="prize-banner">
         <div style="font-size:3.5rem;margin-bottom:16px;">🏆</div>
         <div class="prize-title">&pound;300 PRIZE POOL</div>
-        <div class="prize-sub">Cash prizes, special awards, and bragging rights across London universities.</div>
+        <div class="prize-sub">Cash prizes, special awards, and bragging rights.</div>
         <div class="prize-categories">
             <span class="prize-cat" style="background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.25);color:#67e8f9;">Top 3 Teams</span>
             <span class="prize-cat" style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);color:#c4b5fd;">Best Strategy</span>
@@ -553,7 +553,7 @@ def render_faq():
         ("Where is the event?",
          "Kickoff and closing ceremony at QMUL. The competition week is remote &mdash; build from anywhere."),
         ("Is there a fee?",
-         "No. Completely free to enter. You must be a member of the Machine Learning Society at QMUL to participate."),
+         "No. Completely free to enter. However, you must be a member of the Machine Learning Society at QMUL to participate."),
     ]
 
     for q, a in faqs:
