@@ -553,7 +553,7 @@ def render_faq():
         ("Where is the event?",
          "Kickoff and closing ceremony at QMUL. The competition week is remote &mdash; build from anywhere."),
         ("Is there a fee?",
-         "No. Completely free to enter."),
+         "No. Completely free to enter. You must be a member of the Machine Learning Society at QMUL to participate."),
     ]
 
     for q, a in faqs:
