@@ -643,7 +643,7 @@ def render_who():
             </div>
             <div style="display:flex;gap:16px;">
                 <div style="padding:14px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;text-align:center;flex:1;">
-                    <div style="font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:var(--accent);">2–4</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:var(--accent);">1–4</div>
                     <div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">Per Team</div>
                 </div>
                 <div style="padding:14px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;text-align:center;flex:1;">
@@ -792,17 +792,6 @@ def render_team_formation():
         st.markdown("""
         <div style="text-align:center;margin-bottom:20px;color:var(--text-muted);font-size:1.05rem;">
             No open teams yet &mdash; open yours below!
-        </div>
-        """, unsafe_allow_html=True)
-
-    # ── Warning for pre-formed teams without a name ───────────────────────────
-    missing_name = _get_teams_without_name()
-    if missing_name:
-        notice_count = len(missing_name)
-        st.markdown(f"""
-        <div style="text-align:center;margin-bottom:8px;">
-            <div class="tf-notice">\u26a0\ufe0f {notice_count} registered team{"s" if notice_count != 1 else ""}
-            still need{"s" if notice_count == 1 else ""} a team name</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -994,13 +983,11 @@ def render_registered_teams():
         ]
         accent, bg, border = colors[color_idx]
         size = info["size"]
-        member_names = ", ".join(m.get("name", "?") for m in info["members"])
         html += (
             f'<div class="rt-card" style="border-color:{border};">'
             f'<div class="rt-accent-bar" style="background:linear-gradient(90deg,{accent},{border});"></div>'
             f'<div class="rt-name" style="color:{accent};">{name}</div>'
             f'<div class="rt-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
-            f'<div class="rt-names">{member_names}</div>'
             f'</div>'
         )
     html += '</div>'
