@@ -700,6 +700,9 @@ def render_registration():
         <div class="section-subtitle" style="margin:0 auto;">
             Sign up to receive updates and secure your team's spot.<br>
             <span style="font-size:0.9rem;color:var(--text-muted);">
+                <strong style="color:var(--accent);">Teams of 2&ndash;4: only one person needs to submit this form</strong>
+                on behalf of the whole team &mdash; enter your team name and the number of people
+                (including yourself).<br>
                 Solo participants can set a team name later in the
                 <strong>Team Hub</strong>. Once you name your solo team, it will already
                 show on the Registered Teams board. Opening it up for more people is optional.
@@ -720,7 +723,11 @@ def render_registration():
         with fc2:
             reg_email = st.text_input("Email *")
             reg_degree = st.text_input("Degree / Background")
-            reg_team_size = st.selectbox("Team Size", ["1 (looking for a team)", "2", "3", "4"])
+            reg_team_size = st.selectbox(
+                "Team Size",
+                ["1 (looking for a team)", "2", "3", "4"],
+                help="Registering as a team? Only one teammate needs to submit this form — enter the total team size here.",
+            )
 
         # Team name: mandatory for teams of 2+, optional for solo
         reg_team = st.text_input(
@@ -1012,6 +1019,8 @@ def render_faq():
     """, unsafe_allow_html=True)
 
     faqs = [
+        ("Do I register individually or as a team?",
+         "If you already have a team (2&ndash;4 people), <strong>only one person per team needs to register</strong> &mdash; enter your team name and the total team size. Everyone else on your team will be counted automatically. Solo participants register individually and can find or form a team later via the Team Hub."),
         ("Do I need finance experience?",
          "Not at all. We provide all resources, starter code, and datasets. If you can write Python, you're good."),
         ("Can I participate solo?",
