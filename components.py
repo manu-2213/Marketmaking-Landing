@@ -60,6 +60,68 @@ def get_team_count():
         return 0
 
 
+# ── Team-formation helpers ────────────────────────────────────────────────────
+# Column indices (0-based): 0=timestamp, 1=name, 2=email, 3=university,
+# 4=degree, 5=team_name, 6=team_size, 7=experience, 8=interest
+
+_SOLO_LABEL = "1 (looking for a team)"
+
+
+def _get_all_rows():
+    """Return (worksheet, all_values) from the main sheet."""
+    ws = _get_gsheet()
+    return ws, ws.get_all_values()
+
+
+def _get_solo_registrations():
+    """Return list of dicts for every solo registrant (team_size == solo label)."""
+    _, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return []
+    header = rows[0]
+    results = []
+    for r in rows[1:]:
+        if len(r) > 6 and r[6] == _SOLO_LABEL:
+            results.append({h: r[i] if i < len(r) else "" for i, h in enumerate(header)})
+    return results
+
+
+def _get_open_teams():
+    """Return {team_name: [member_dicts]} for solo-formed teams with < 4 members."""
+    solos = _get_solo_registrations()
+    teams: dict[str, list[dict]] = {}
+    for s in solos:
+        tn = (s.get("team_name") or "").strip()
+        if tn:
+            teams.setdefault(tn, []).append(s)
+    return {name: members for name, members in teams.items() if len(members) < 4}
+
+
+def _verify_solo_email(email: str):
+    """Check if an email belongs to a solo registrant. Returns (row_index_1based, row_dict) or None."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return None
+    header = rows[0]
+    for idx, r in enumerate(rows[1:], start=2):  # 1-based, skip header
+        if len(r) > 6 and r[2].strip().lower() == email.strip().lower() and r[6] == _SOLO_LABEL:
+            row_dict = {h: r[i] if i < len(r) else "" for i, h in enumerate(header)}
+            return idx, row_dict
+    return None
+
+
+def _update_team_name(email: str, team_name: str):
+    """Set team_name for a solo registrant identified by email. Returns True on success."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return False
+    for idx, r in enumerate(rows[1:], start=2):
+        if len(r) > 6 and r[2].strip().lower() == email.strip().lower() and r[6] == _SOLO_LABEL:
+            ws.update_cell(idx, 6, team_name)  # col 6 = team_name (1-based)
+            return True
+    return False
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _generate_candlestick_html():
@@ -528,6 +590,141 @@ def render_registration():
                     st.error(f"Registration failed: {exc}")
             else:
                 st.warning("Please fill in at least your name and email.")
+
+
+def render_team_formation():
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown('<div id="find-team"></div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align:center;margin-bottom:40px;">
+        <div class="section-tag">Solo Participants</div>
+        <div class="section-title">Find Your Team</div>
+        <div class="section-subtitle" style="margin:0 auto;">
+            Registered as a solo participant? Create a new team or join an existing one.
+            Only open to those who signed up as <strong>&ldquo;looking for a team&rdquo;</strong>.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Show open teams ───────────────────────────────────────────────────────
+    open_teams = _get_open_teams()
+
+    if open_teams:
+        st.markdown("""
+        <div style="text-align:center;margin-bottom:24px;">
+            <div class="tf-open-label">Open Teams</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        team_html = '<div class="tf-team-grid">'
+        for name, members in open_teams.items():
+            spots = 4 - len(members)
+            member_names = ", ".join(m.get("name", "?") for m in members)
+            team_html += (
+                f'<div class="tf-team-card">'
+                f'<div class="tf-team-name">{name}</div>'
+                f'<div class="tf-team-members">👥 {len(members)}/4 &mdash; {member_names}</div>'
+                f'<div class="tf-team-spots">{spots} spot{"s" if spots != 1 else ""} left</div>'
+                f'</div>'
+            )
+        team_html += '</div>'
+        st.markdown(team_html, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="text-align:center;margin-bottom:20px;color:var(--text-muted);font-size:1.05rem;">
+            No open teams yet &mdash; be the first to create one!
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Create / Join forms ───────────────────────────────────────────────────
+    col_create, col_join = st.columns(2, gap="large")
+
+    with col_create:
+        st.markdown("""
+        <div class="tf-form-header">
+            <span class="tf-form-icon">🚀</span>
+            <span class="tf-form-title">Create a Team</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("create_team_form", clear_on_submit=True):
+            ct_email = st.text_input("Your registered email *", key="ct_email")
+            ct_team = st.text_input("New team name *", key="ct_team")
+            ct_submitted = st.form_submit_button("Create Team", use_container_width=True)
+
+            if ct_submitted:
+                ct_email_clean = ct_email.strip()
+                ct_team_clean = ct_team.strip()
+                if not ct_email_clean or not ct_team_clean:
+                    st.warning("Please fill in both fields.")
+                else:
+                    result = _verify_solo_email(ct_email_clean)
+                    if result is None:
+                        st.error("Email not found among solo registrants. "
+                                 "Make sure you registered with team size "
+                                 "\"1 (looking for a team)\".")
+                    else:
+                        _, row = result
+                        existing = (row.get("team_name") or "").strip()
+                        if existing:
+                            st.error(f"You're already in team **{existing}**.")
+                        else:
+                            # Check name isn't taken
+                            _, all_rows = _get_all_rows()
+                            taken = any(
+                                r[5].strip().lower() == ct_team_clean.lower()
+                                for r in all_rows[1:] if len(r) > 5 and r[5].strip()
+                            )
+                            if taken:
+                                st.error("That team name is already taken. Try another.")
+                            else:
+                                ok = _update_team_name(ct_email_clean, ct_team_clean)
+                                if ok:
+                                    st.success(f"**Team \"{ct_team_clean}\" created!** "
+                                               "Share the name so others can join.")
+                                    st.balloons()
+                                else:
+                                    st.error("Something went wrong. Please try again.")
+
+    with col_join:
+        st.markdown("""
+        <div class="tf-form-header">
+            <span class="tf-form-icon">🤝</span>
+            <span class="tf-form-title">Join a Team</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("join_team_form", clear_on_submit=True):
+            jt_email = st.text_input("Your registered email *", key="jt_email")
+            team_choices = list(open_teams.keys()) if open_teams else ["No open teams yet"]
+            jt_team = st.selectbox("Select a team to join", team_choices, key="jt_team")
+            jt_submitted = st.form_submit_button("Join Team", use_container_width=True)
+
+            if jt_submitted:
+                jt_email_clean = jt_email.strip()
+                if not jt_email_clean:
+                    st.warning("Please enter your email.")
+                elif not open_teams:
+                    st.warning("There are no open teams to join right now.")
+                else:
+                    result = _verify_solo_email(jt_email_clean)
+                    if result is None:
+                        st.error("Email not found among solo registrants. "
+                                 "Make sure you registered with team size "
+                                 "\"1 (looking for a team)\".")
+                    else:
+                        _, row = result
+                        existing = (row.get("team_name") or "").strip()
+                        if existing:
+                            st.error(f"You're already in team **{existing}**.")
+                        elif jt_team not in open_teams:
+                            st.error("That team is no longer available.")
+                        else:
+                            ok = _update_team_name(jt_email_clean, jt_team)
+                            if ok:
+                                st.success(f"**You joined team \"{jt_team}\"!** Good luck 🎉")
+                            else:
+                                st.error("Something went wrong. Please try again.")
 
 
 def render_faq():
