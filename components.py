@@ -196,12 +196,10 @@ def _get_all_named_teams():
     Included:
     - Pre-formed teams: team_size in (2,3,4) with a team_name. Size comes from
       the team_size column (the registrant entered it for the whole team).
-    - Solo-formed teams: 2+ solo registrants sharing the same team_name
-      (formed via the Team Hub). Size = number of rows.
-
-    Excluded:
-    - A lone solo registrant who has a team_name but nobody else joined yet
-      (they're still listed under Open Teams instead).
+        - Solo teams: any solo registrant with a team_name should appear on the
+            Registered Teams board, even if they stay solo.
+        - Solo-formed groups: multiple solo registrants sharing the same team_name
+            (formed via the Team Hub). Size = number of rows.
     """
     _, rows = _get_all_rows()
     if len(rows) <= 1:
@@ -230,9 +228,11 @@ def _get_all_named_teams():
     # teammates registering individually — do NOT add them on top.
     for tn, info in preformed.items():
         result[tn] = info
-    # Pure solo-formed groups (no pre-formed entry): only show once 2+ people joined
+    # Pure solo teams/groups (no pre-formed entry): show as soon as a solo
+    # participant picks a name. If more solo participants join later, the size
+    # naturally increases with row count.
     for tn, members in solo_groups.items():
-        if tn not in result and len(members) >= 2:
+        if tn not in result:
             result[tn] = {"members": members, "size": len(members)}
     return result
 
@@ -700,8 +700,9 @@ def render_registration():
         <div class="section-subtitle" style="margin:0 auto;">
             Sign up to receive updates and secure your team's spot.<br>
             <span style="font-size:0.9rem;color:var(--text-muted);">
-                Looking for teammates? Register as a solo participant, then head to the
-                <strong>Team Hub</strong> below to set a name and open your team.
+                Solo participants can set a team name later in the
+                <strong>Team Hub</strong>. Once you name your solo team, it will already
+                show on the Registered Teams board. Opening it up for more people is optional.
             </span>
         </div>
     </div>
@@ -756,8 +757,9 @@ def render_team_formation():
         <div class="section-tag">Team Hub</div>
         <div class="section-title">Find Your Team</div>
         <div class="section-subtitle" style="margin:0 auto;">
-            Already registered? Set your team name, open your team to new members,
-            or browse open teams and join one. Use the email you registered with.
+            Already registered? Set your team name, keep your solo team as-is,
+            optionally open it to recruit more people, or browse open teams and join one.
+            Use the email you registered with.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -855,7 +857,8 @@ def render_team_formation():
         """, unsafe_allow_html=True)
         st.markdown("""
         <div style="margin-bottom:12px;color:var(--text-secondary);font-size:0.9rem;">
-            Already have a team name? Make it public so others can find and join you.
+            This step is optional. If you're a solo participant and want to recruit,
+            make your named team public so others can find and join you.
         </div>
         """, unsafe_allow_html=True)
 
