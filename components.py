@@ -119,17 +119,54 @@ def _get_open_teams():
 
 
 def _get_all_named_teams():
-    """Return {team_name: [member_dicts]} for every registrant who has a team_name."""
+    """Return {team_name: {"members": [member_dicts], "size": int}} for teams
+    that should be displayed.
+
+    Included:
+    - Pre-formed teams: team_size in (2,3,4) with a team_name. Size comes from
+      the team_size column (the registrant entered it for the whole team).
+    - Solo-formed teams: 2+ solo registrants sharing the same team_name
+      (formed via the Team Hub). Size = number of rows.
+
+    Excluded:
+    - A lone solo registrant who has a team_name but nobody else joined yet
+      (they're still listed under Open Teams instead).
+    """
     _, rows = _get_all_rows()
     if len(rows) <= 1:
         return {}
     header = rows[0]
-    teams: dict[str, list[dict]] = {}
+
+    preformed: dict[str, dict] = {}   # team_size 2-4
+    solo_groups: dict[str, list[dict]] = {}  # team_size == _SOLO_LABEL
+
     for r in rows[1:]:
         tn = (r[5] if len(r) > 5 else "").strip()
-        if tn:
-            teams.setdefault(tn, []).append(_row_to_dict(header, r))
-    return teams
+        ts = (r[6] if len(r) > 6 else "").strip()
+        if not tn:
+            continue
+        d = _row_to_dict(header, r)
+        if ts in ("2", "3", "4"):
+            if tn not in preformed:
+                preformed[tn] = {"members": [], "size": int(ts)}
+            preformed[tn]["members"].append(d)
+        elif ts == _SOLO_LABEL:
+            solo_groups.setdefault(tn, []).append(d)
+
+    result: dict[str, dict] = {}
+    # Pre-formed teams always show
+    for tn, info in preformed.items():
+        result[tn] = info
+    # Solo-formed teams only if 2+ members joined
+    for tn, members in solo_groups.items():
+        if len(members) >= 2:
+            if tn in result:
+                # Merge solo joiners into a pre-formed team
+                result[tn]["members"].extend(members)
+                result[tn]["size"] += len(members)
+            else:
+                result[tn] = {"members": members, "size": len(members)}
+    return result
 
 
 def _get_teams_without_name():
@@ -843,7 +880,7 @@ def render_registered_teams():
         return
 
     html = '<div class="rt-grid">'
-    for idx, (name, members) in enumerate(all_teams.items()):
+    for idx, (name, info) in enumerate(all_teams.items()):
         color_idx = idx % 4
         colors = [
             ("var(--accent)", "rgba(0,240,255,0.12)", "rgba(0,240,255,0.3)"),
@@ -852,12 +889,13 @@ def render_registered_teams():
             ("var(--gold)", "rgba(251,191,36,0.12)", "rgba(251,191,36,0.3)"),
         ]
         accent, bg, border = colors[color_idx]
-        member_names = ", ".join(m.get("name", "?") for m in members)
+        size = info["size"]
+        member_names = ", ".join(m.get("name", "?") for m in info["members"])
         html += (
             f'<div class="rt-card" style="border-color:{border};">'
             f'<div class="rt-accent-bar" style="background:linear-gradient(90deg,{accent},{border});"></div>'
             f'<div class="rt-name" style="color:{accent};">{name}</div>'
-            f'<div class="rt-members">\U0001f465 {len(members)} member{"s" if len(members) != 1 else ""}</div>'
+            f'<div class="rt-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
             f'<div class="rt-names">{member_names}</div>'
             f'</div>'
         )
