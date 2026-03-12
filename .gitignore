@@ -4,3 +4,4 @@ __pycache__/
 .venv/
 .env
 registrations.csv
+send_team_emails.py

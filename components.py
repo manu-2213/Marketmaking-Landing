@@ -180,11 +180,19 @@ def _get_open_teams():
             teams.setdefault(tn, []).append(_row_to_dict(header, r))
 
     # Only return teams that still have room
+    # For pre-formed teams (team_size 2-4), the effective current size is the
+    # declared team_size, not the number of rows (only 1 row exists per pre-formed team).
     result = {}
     for tn, members in teams.items():
-        spots_left = opted_in[tn] - len(members)
+        declared_sizes = [
+            int(m.get("team_size", "1"))
+            for m in members
+            if m.get("team_size", "").strip() in ("2", "3", "4")
+        ]
+        effective_size = max([len(members)] + declared_sizes)
+        spots_left = opted_in[tn] - effective_size
         if spots_left > 0:
-            result[tn] = {"members": members, "open_spots": spots_left}
+            result[tn] = {"members": members, "effective_size": effective_size, "open_spots": spots_left}
     return result
 
 
@@ -776,13 +784,12 @@ def render_team_formation():
 
         team_html = '<div class="tf-team-grid">'
         for name, info in open_teams.items():
-            members = info["members"]
+            size = info["effective_size"]
             spots = info["open_spots"]
-            member_names = ", ".join(m.get("name", "?") for m in members)
             team_html += (
                 f'<div class="tf-team-card">'
                 f'<div class="tf-team-name">{name}</div>'
-                f'<div class="tf-team-members">\U0001f465 {len(members)} member{"s" if len(members) != 1 else ""} &mdash; {member_names}</div>'
+                f'<div class="tf-team-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
                 f'<div class="tf-team-spots">{spots} spot{"s" if spots != 1 else ""} open</div>'
                 f'</div>'
             )
@@ -887,7 +894,9 @@ def render_team_formation():
                             st.error("You need a team name first. Use **Step 1** above "
                                      "to set one, then come back here.")
                         else:
-                            current_members = len(_get_teammates(team_name))
+                            # For pre-formed teams use declared team_size, not row count
+                            ts = row.get("team_size", "").strip()
+                            current_members = int(ts) if ts in ("2", "3", "4") else len(_get_teammates(team_name))
                             max_team_size = current_members + int(ot_spots)
                             _set_open_for_joining(ot_email_clean, "yes")
                             _set_open_spots(ot_email_clean, max_team_size)
