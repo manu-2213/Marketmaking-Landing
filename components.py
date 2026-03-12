@@ -24,12 +24,15 @@ def _get_gsheet():
     gc = gspread.authorize(creds)
     sh = gc.open_by_key(st.secrets["sheets"]["spreadsheet_id"])
     ws = sh.sheet1
-    # Ensure header row exists
-    if not ws.row_values(1):
+    header = ws.row_values(1)
+    if not header:
         ws.append_row(
             ["timestamp", "name", "email", "university", "degree",
-             "team_name", "team_size", "experience", "interest"]
+             "team_name", "team_size", "experience", "interest",
+             "open_for_joining"]
         )
+    elif "open_for_joining" not in header:
+        ws.update_cell(1, len(header) + 1, "open_for_joining")
     return ws
 
 
@@ -41,6 +44,7 @@ def _save_registration(name, email, university, degree, team_name,
         datetime.now(timezone.utc).isoformat(),
         name, email, university, degree,
         team_name, team_size, experience, interest,
+        "",  # open_for_joining — empty by default
     ])
 
 
@@ -62,7 +66,8 @@ def get_team_count():
 
 # ── Team-formation helpers ────────────────────────────────────────────────────
 # Column indices (0-based): 0=timestamp, 1=name, 2=email, 3=university,
-# 4=degree, 5=team_name, 6=team_size, 7=experience, 8=interest
+# 4=degree, 5=team_name, 6=team_size, 7=experience, 8=interest,
+# 9=open_for_joining
 
 _SOLO_LABEL = "1 (looking for a team)"
 
@@ -75,6 +80,11 @@ def _get_all_rows():
 
 def _row_to_dict(header, row):
     return {h: row[i] if i < len(row) else "" for i, h in enumerate(header)}
+
+
+def _col_index(header, name):
+    """Return 1-based column index for a header name."""
+    return header.index(name) + 1
 
 
 def _verify_email(email: str):
@@ -94,27 +104,56 @@ def _update_team_name(email: str, team_name: str):
     ws, rows = _get_all_rows()
     if len(rows) <= 1:
         return False
+    header = rows[0]
+    col = _col_index(header, "team_name")
     for idx, r in enumerate(rows[1:], start=2):
         if len(r) > 2 and r[2].strip().lower() == email.strip().lower():
-            ws.update_cell(idx, 6, team_name)  # col 6 = team_name (1-based)
+            ws.update_cell(idx, col, team_name)
+            return True
+    return False
+
+
+def _set_open_for_joining(email: str, value: str = "yes"):
+    """Mark a registrant's row as open_for_joining."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return False
+    header = rows[0]
+    col = _col_index(header, "open_for_joining")
+    for idx, r in enumerate(rows[1:], start=2):
+        if len(r) > 2 and r[2].strip().lower() == email.strip().lower():
+            ws.update_cell(idx, col, value)
             return True
     return False
 
 
 def _get_open_teams():
-    """Return {team_name: [member_dicts]} for teams that are marked as
-    'looking for a team' (solo) AND have < 4 members sharing that team_name.
-    These are the teams open for strangers to join."""
+    """Return {team_name: [member_dicts]} for teams where the creator
+    explicitly opted in via the 'Create a Team' form (open_for_joining == 'yes').
+    Only returns teams with < 4 members sharing that team_name."""
     _, rows = _get_all_rows()
     if len(rows) <= 1:
         return {}
     header = rows[0]
+    ofj_idx = header.index("open_for_joining") if "open_for_joining" in header else None
+
+    # First pass: find team names that have at least one opted-in member
+    opted_in_names: set[str] = set()
+    if ofj_idx is not None:
+        for r in rows[1:]:
+            ofj = (r[ofj_idx] if len(r) > ofj_idx else "").strip().lower()
+            tn = (r[5] if len(r) > 5 else "").strip()
+            if ofj == "yes" and tn:
+                opted_in_names.add(tn)
+
+    # Second pass: collect all solo members of those opted-in teams
     teams: dict[str, list[dict]] = {}
     for r in rows[1:]:
         if len(r) > 6 and r[6] == _SOLO_LABEL:
             tn = (r[5] if len(r) > 5 else "").strip()
-            if tn:
+            if tn and tn in opted_in_names:
                 teams.setdefault(tn, []).append(_row_to_dict(header, r))
+
     return {name: members for name, members in teams.items() if len(members) < 4}
 
 
@@ -170,7 +209,8 @@ def _get_all_named_teams():
 
 
 def _get_teams_without_name():
-    """Return list of dicts for registrants with team_size > 1 but no team_name."""
+    """Return unique team registrations (team_size 2-4) that have no team_name.
+    Each row is one registration representing a whole team."""
     _, rows = _get_all_rows()
     if len(rows) <= 1:
         return []
@@ -180,9 +220,21 @@ def _get_teams_without_name():
         if len(r) > 6:
             tn = (r[5]).strip()
             ts = (r[6]).strip()
-            if not tn and ts not in ("", _SOLO_LABEL, "1"):
+            if not tn and ts in ("2", "3", "4"):
                 results.append(_row_to_dict(header, r))
     return results
+
+
+def _get_teammates(team_name: str):
+    """Return list of member dicts sharing the same team_name."""
+    _, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return []
+    header = rows[0]
+    return [
+        _row_to_dict(header, r) for r in rows[1:]
+        if len(r) > 5 and r[5].strip().lower() == team_name.strip().lower()
+    ]
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -750,6 +802,7 @@ def render_team_formation():
                             else:
                                 ok = _update_team_name(ct_email_clean, ct_team_clean)
                                 if ok:
+                                    _set_open_for_joining(ct_email_clean, "yes")
                                     st.success(f"**Team \"{ct_team_clean}\" created!** "
                                                "Share the name so others can join.")
                                     st.balloons()
@@ -790,7 +843,14 @@ def render_team_formation():
                         else:
                             ok = _update_team_name(jt_email_clean, jt_team)
                             if ok:
-                                st.success(f"**You joined team \"{jt_team}\"!** Good luck \U0001f389")
+                                teammates = _get_teammates(jt_team)
+                                names = [m.get("name", "?") for m in teammates
+                                         if m.get("email", "").strip().lower() != jt_email_clean.lower()]
+                                if names:
+                                    st.success(f"**You joined team \"{jt_team}\"!** "
+                                               f"Your teammates: {', '.join(names)} \U0001f389")
+                                else:
+                                    st.success(f"**You joined team \"{jt_team}\"!** Good luck \U0001f389")
                             else:
                                 st.error("Something went wrong. Please try again.")
 
@@ -802,7 +862,7 @@ def render_team_formation():
         notice_count = len(missing_name)
         st.markdown(f"""
         <div style="text-align:center;margin-bottom:8px;">
-            <div class="tf-notice">\u26a0\ufe0f {notice_count} registered team member{"s" if notice_count != 1 else ""}
+            <div class="tf-notice">\u26a0\ufe0f {notice_count} registered team{"s" if notice_count != 1 else ""}
             still need{"s" if notice_count == 1 else ""} a team name</div>
         </div>
         """, unsafe_allow_html=True)
