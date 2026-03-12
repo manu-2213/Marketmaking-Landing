@@ -180,19 +180,12 @@ def _get_open_teams():
             teams.setdefault(tn, []).append(_row_to_dict(header, r))
 
     # Only return teams that still have room
-    # For pre-formed teams (team_size 2-4), the effective current size is the
-    # declared team_size, not the number of rows (only 1 row exists per pre-formed team).
+    # Only solo participants can open teams, so member count = row count.
     result = {}
     for tn, members in teams.items():
-        declared_sizes = [
-            int(m.get("team_size", "1"))
-            for m in members
-            if m.get("team_size", "").strip() in ("2", "3", "4")
-        ]
-        effective_size = max([len(members)] + declared_sizes)
-        spots_left = opted_in[tn] - effective_size
+        spots_left = opted_in[tn] - len(members)
         if spots_left > 0:
-            result[tn] = {"members": members, "effective_size": effective_size, "open_spots": spots_left}
+            result[tn] = {"members": members, "effective_size": len(members), "open_spots": spots_left}
     return result
 
 
@@ -235,15 +228,16 @@ def _get_all_named_teams():
     # Pre-formed teams always show
     for tn, info in preformed.items():
         result[tn] = info
-    # Solo-formed teams only if 2+ members joined
+    # Solo participants: merge into pre-formed team if one exists (any number),
+    # otherwise only show as their own group if 2+ have joined
     for tn, members in solo_groups.items():
-        if len(members) >= 2:
-            if tn in result:
-                # Merge solo joiners into a pre-formed team
-                result[tn]["members"].extend(members)
-                result[tn]["size"] += len(members)
-            else:
-                result[tn] = {"members": members, "size": len(members)}
+        if tn in result:
+            # Solo joiners added on top of a pre-formed team — always include
+            result[tn]["members"].extend(members)
+            result[tn]["size"] += len(members)
+        elif len(members) >= 2:
+            # Pure solo-formed group — only show once 2+ people are in
+            result[tn] = {"members": members, "size": len(members)}
     return result
 
 
@@ -893,19 +887,25 @@ def render_team_formation():
                         if not team_name:
                             st.error("You need a team name first. Use **Step 1** above "
                                      "to set one, then come back here.")
+                        elif (row.get("team_size") or "").strip() in ("2", "3", "4"):
+                            st.error("You registered as a pre-formed team — "
+                                     "this feature is only for solo participants looking for teammates. "
+                                     "Your team is already on the Registered Teams board.")
                         else:
-                            # For pre-formed teams use declared team_size, not row count
-                            ts = row.get("team_size", "").strip()
-                            current_members = int(ts) if ts in ("2", "3", "4") else len(_get_teammates(team_name))
-                            max_team_size = current_members + int(ot_spots)
-                            _set_open_for_joining(ot_email_clean, "yes")
-                            _set_open_spots(ot_email_clean, max_team_size)
-                            st.success(
-                                f"**Team \"{team_name}\" is now public** with "
-                                f"{ot_spots} open spot{'s' if ot_spots != '1' else ''}! "
-                                "Others can find and join it below."
-                            )
-                            st.balloons()
+                            current_members = len(_get_teammates(team_name)) or 1
+                            max_team_size = min(current_members + int(ot_spots), 4)
+                            if max_team_size <= current_members:
+                                st.error(f"Your team already has {current_members} member{'s' if current_members != 1 else ''} — no room to add more (max team size is 4).")
+                            else:
+                                actual_spots = max_team_size - current_members
+                                _set_open_for_joining(ot_email_clean, "yes")
+                                _set_open_spots(ot_email_clean, max_team_size)
+                                st.success(
+                                    f"**Team \"{team_name}\" is now public** with "
+                                    f"{actual_spots} open spot{'s' if actual_spots != 1 else ''}! "
+                                    "Others can find and join it below."
+                                )
+                                st.balloons()
 
     with col_join:
         st.markdown("""
