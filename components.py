@@ -225,18 +225,14 @@ def _get_all_named_teams():
             solo_groups.setdefault(tn, []).append(d)
 
     result: dict[str, dict] = {}
-    # Pre-formed teams always show
+    # Pre-formed teams: always show with their declared size.
+    # Solo registrants who set the same team name are assumed to be the declared
+    # teammates registering individually — do NOT add them on top.
     for tn, info in preformed.items():
         result[tn] = info
-    # Solo participants: merge into pre-formed team if one exists (any number),
-    # otherwise only show as their own group if 2+ have joined
+    # Pure solo-formed groups (no pre-formed entry): only show once 2+ people joined
     for tn, members in solo_groups.items():
-        if tn in result:
-            # Solo joiners added on top of a pre-formed team — always include
-            result[tn]["members"].extend(members)
-            result[tn]["size"] += len(members)
-        elif len(members) >= 2:
-            # Pure solo-formed group — only show once 2+ people are in
+        if tn not in result and len(members) >= 2:
             result[tn] = {"members": members, "size": len(members)}
     return result
 
