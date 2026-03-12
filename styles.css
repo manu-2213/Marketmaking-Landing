@@ -929,6 +929,65 @@ hr { border-color: var(--border) !important; opacity: 0.4 !important; }
     font-weight: 700;
     color: var(--text);
 }
+.tf-notice {
+    display: inline-block;
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 50px;
+    padding: 8px 22px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gold);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* --------------------------------------------------------------------------
+   16b. Registered Teams Showcase
+   -------------------------------------------------------------------------- */
+
+.rt-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+}
+.rt-card {
+    background: linear-gradient(145deg, var(--surface), var(--surface2));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    min-width: 200px;
+    max-width: 260px;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+.rt-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+.rt-accent-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+}
+.rt-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.rt-members {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.rt-names {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
 
 /* --------------------------------------------------------------------------
    17. Footer
@@ -963,4 +1022,6 @@ hr { border-color: var(--border) !important; opacity: 0.4 !important; }
     .lb-strategy { display: none; }
     .tf-team-grid { flex-direction: column; align-items: center; }
     .tf-team-card { max-width: 100%; }
+    .rt-grid { flex-direction: column; align-items: center; }
+    .rt-card { max-width: 100%; }
 }

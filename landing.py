@@ -31,6 +31,7 @@ from components import (
     render_hype,
     render_registration,
     render_team_formation,
+    render_registered_teams,
     render_faq,
     render_cta,
     render_footer,
@@ -47,6 +48,7 @@ render_prizes()
 render_hype()
 render_registration()
 render_team_formation()
+render_registered_teams()
 render_faq()
 render_cta()
 render_footer()
