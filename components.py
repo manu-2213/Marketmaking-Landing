@@ -118,6 +118,50 @@ def _update_team_name(email: str, team_name: str):
     return False
 
 
+def _rename_team_for_all_members(old_team_name: str, new_team_name: str):
+    """Rename a team for all rows that currently use old_team_name."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return 0
+    header = rows[0]
+    col = _col_index(header, "team_name")
+    old_lower = old_team_name.strip().lower()
+    changed = 0
+    for idx, r in enumerate(rows[1:], start=2):
+        existing = (r[5] if len(r) > 5 else "").strip().lower()
+        if existing and existing == old_lower:
+            ws.update_cell(idx, col, new_team_name)
+            changed += 1
+    return changed
+
+
+def _team_name_taken_by_other_group(candidate_team_name: str, current_team_name: str = ""):
+    """Check if a team name is already used by a different team.
+
+    If current_team_name is provided, rows from that same team are ignored so a
+    rename/update within the same team is allowed.
+    """
+    _, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return False
+
+    candidate = candidate_team_name.strip().lower()
+    current = current_team_name.strip().lower()
+    if not candidate:
+        return False
+
+    for r in rows[1:]:
+        existing = (r[5] if len(r) > 5 else "").strip().lower()
+        if not existing:
+            continue
+        if existing != candidate:
+            continue
+        if current and existing == current:
+            continue
+        return True
+    return False
+
+
 def _set_open_for_joining(email: str, value: str = "yes"):
     """Mark a registrant's row as open_for_joining."""
     ws, rows = _get_all_rows()
@@ -144,6 +188,45 @@ def _set_open_spots(email: str, max_team_size: int):
             ws.update_cell(idx, col, str(max_team_size))
             return True
     return False
+
+
+def _clear_team_fields_for_email(email: str):
+    """Clear team-related fields for a registrant identified by email."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return False
+    header = rows[0]
+    team_col = _col_index(header, "team_name")
+    ofj_col = _col_index(header, "open_for_joining")
+    spots_col = _col_index(header, "open_spots")
+    for idx, r in enumerate(rows[1:], start=2):
+        if len(r) > 2 and r[2].strip().lower() == email.strip().lower():
+            ws.update_cell(idx, team_col, "")
+            ws.update_cell(idx, ofj_col, "")
+            ws.update_cell(idx, spots_col, "")
+            return True
+    return False
+
+
+def _clear_team_fields_for_team(team_name: str):
+    """Clear team-related fields for all registrants in a named team."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return 0
+    header = rows[0]
+    team_col = _col_index(header, "team_name")
+    ofj_col = _col_index(header, "open_for_joining")
+    spots_col = _col_index(header, "open_spots")
+    team_lower = team_name.strip().lower()
+    changed = 0
+    for idx, r in enumerate(rows[1:], start=2):
+        existing = (r[5] if len(r) > 5 else "").strip().lower()
+        if existing and existing == team_lower:
+            ws.update_cell(idx, team_col, "")
+            ws.update_cell(idx, ofj_col, "")
+            ws.update_cell(idx, spots_col, "")
+            changed += 1
+    return changed
 
 
 def _get_open_teams():
@@ -740,15 +823,18 @@ def render_registration():
 
         if submitted:
             is_team = reg_team_size in ("2", "3", "4")
+            reg_team_clean = reg_team.strip()
             if not reg_name or not reg_email:
                 st.warning("Please fill in at least your name and email.")
-            elif is_team and not reg_team.strip():
+            elif is_team and not reg_team_clean:
                 st.warning("Team name is required when registering as a team of 2 or more.")
+            elif reg_team_clean and _team_name_taken_by_other_group(reg_team_clean):
+                st.error("That team name is already taken. Please choose a unique team name.")
             else:
                 try:
                     _save_registration(
                         reg_name, reg_email, reg_uni, reg_degree,
-                        reg_team.strip(), reg_team_size, reg_experience, reg_interest,
+                        reg_team_clean, reg_team_size, reg_experience, reg_interest,
                     )
                     st.success("**You're in!** We'll send you updates soon.")
                     st.balloons()
@@ -765,7 +851,8 @@ def render_team_formation():
         <div class="section-title">Find Your Team</div>
         <div class="section-subtitle" style="margin:0 auto;">
             Already registered? Set your team name, keep your solo team as-is,
-            optionally open it to recruit more people, or browse open teams and join one.
+            optionally open it to recruit more people, browse open teams and join one,
+            or leave/delete your current team.
             Use the email you registered with.
         </div>
     </div>
@@ -834,21 +921,92 @@ def render_team_formation():
                 if result is None:
                     st.error("Email not found. Make sure you've registered first.")
                 else:
-                    # Check name isn't taken by a *different* group
-                    _, all_rows = _get_all_rows()
-                    taken_by_other = any(
-                        r[5].strip().lower() == un_team_clean.lower()
-                        and r[2].strip().lower() != un_email_clean.lower()
-                        for r in all_rows[1:] if len(r) > 5 and r[5].strip()
-                    )
-                    if taken_by_other:
+                    _, row = result
+                    current_team = (row.get("team_name") or "").strip()
+
+                    if _team_name_taken_by_other_group(un_team_clean, current_team):
                         st.error("That team name is already used by another group. Try a different one.")
                     else:
-                        ok = _update_team_name(un_email_clean, un_team_clean)
+                        # If the registrant is already in a team, rename the whole team so
+                        # open-team joiners and existing teammates stay together.
+                        if current_team:
+                            changed = _rename_team_for_all_members(current_team, un_team_clean)
+                            if changed > 0:
+                                st.success(
+                                    f"**Team renamed to \"{un_team_clean}\" for all {changed} member"
+                                    f"{'s' if changed != 1 else ''}!**"
+                                )
+                            else:
+                                st.error("Something went wrong. Please try again.")
+                        else:
+                            ok = _update_team_name(un_email_clean, un_team_clean)
+                            if ok:
+                                st.success(f"**Team name set to \"{un_team_clean}\"!**")
+                            else:
+                                st.error("Something went wrong. Please try again.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Step 4: Leave / Delete Team ─────────────────────────────────────────
+    st.markdown("""
+    <div style="text-align:center;margin-bottom:16px;">
+        <div class="tf-form-header" style="justify-content:center;">
+            <span class="tf-form-icon">🗑️</span>
+            <span class="tf-form-title">Manage Team &mdash; Leave / Delete</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align:center;margin-bottom:16px;color:var(--text-secondary);font-size:0.95rem;">
+        If you are a solo participant in a team, this will remove only you from that team.<br>
+        If you registered a pre-formed team (2&ndash;4), this will delete that team entry.
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.form("leave_or_delete_team_form", clear_on_submit=True):
+        ld_email = st.text_input("Your registered email *", key="ld_email")
+        ld_confirm = st.checkbox(
+            "I understand this action updates team assignments immediately",
+            key="ld_confirm",
+        )
+        ld_submitted = st.form_submit_button("Leave / Delete Team", use_container_width=True)
+
+        if ld_submitted:
+            ld_email_clean = ld_email.strip()
+            if not ld_email_clean:
+                st.warning("Please enter your email.")
+            elif not ld_confirm:
+                st.warning("Please confirm before continuing.")
+            else:
+                result = _verify_email(ld_email_clean)
+                if result is None:
+                    st.error("Email not found. Make sure you've registered first.")
+                else:
+                    _, row = result
+                    current_team = (row.get("team_name") or "").strip()
+                    current_size = (row.get("team_size") or "").strip()
+
+                    if not current_team:
+                        st.warning("You are not currently in a named team.")
+                    elif current_size == _SOLO_LABEL:
+                        ok = _clear_team_fields_for_email(ld_email_clean)
                         if ok:
-                            st.success(f"**Team name set to \"{un_team_clean}\"!**")
+                            st.success(
+                                f"**You left team \"{current_team}\".**"
+                            )
                         else:
                             st.error("Something went wrong. Please try again.")
+                    elif current_size in ("2", "3", "4"):
+                        removed = _clear_team_fields_for_team(current_team)
+                        if removed > 0:
+                            st.success(
+                                f"**Team \"{current_team}\" deleted.** "
+                                f"Updated {removed} registration row{'s' if removed != 1 else ''}."
+                            )
+                        else:
+                            st.error("Something went wrong. Please try again.")
+                    else:
+                        st.error("Your registration type is not supported for this action.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
