@@ -191,7 +191,12 @@ def _set_open_spots(email: str, max_team_size: int):
 
 
 def _clear_team_fields_for_email(email: str):
-    """Clear team-related fields for a registrant identified by email."""
+    """Clear team-related fields for a registrant identified by email.
+
+    If this registrant is carrying open-team metadata (open_for_joining/open_spots)
+    and teammates remain, transfer that metadata to one remaining teammate so the
+    team can stay open.
+    """
     ws, rows = _get_all_rows()
     if len(rows) <= 1:
         return False
@@ -199,13 +204,53 @@ def _clear_team_fields_for_email(email: str):
     team_col = _col_index(header, "team_name")
     ofj_col = _col_index(header, "open_for_joining")
     spots_col = _col_index(header, "open_spots")
+
+    leaving_idx = None
+    leaving_team = ""
+    leaving_ofj = ""
+    leaving_spots = ""
+
     for idx, r in enumerate(rows[1:], start=2):
         if len(r) > 2 and r[2].strip().lower() == email.strip().lower():
-            ws.update_cell(idx, team_col, "")
-            ws.update_cell(idx, ofj_col, "")
-            ws.update_cell(idx, spots_col, "")
-            return True
-    return False
+            leaving_idx = idx
+            leaving_team = (r[5] if len(r) > 5 else "").strip()
+            leaving_ofj = (r[9] if len(r) > 9 else "").strip().lower()
+            leaving_spots = (r[10] if len(r) > 10 else "").strip()
+            break
+
+    if leaving_idx is None:
+        return False
+
+    # If the leaving member is carrying openness metadata, migrate it to a
+    # remaining teammate before clearing this row.
+    if leaving_team and leaving_ofj == "yes":
+        team_lower = leaving_team.lower()
+        teammate_idx = None
+        max_team_size = 0
+
+        for idx, r in enumerate(rows[1:], start=2):
+            existing_team = (r[5] if len(r) > 5 else "").strip().lower()
+            if existing_team != team_lower:
+                continue
+            if idx != leaving_idx and teammate_idx is None:
+                teammate_idx = idx
+
+            existing_spots = (r[10] if len(r) > 10 else "").strip()
+            if existing_spots.isdigit():
+                max_team_size = max(max_team_size, int(existing_spots))
+
+        if leaving_spots.isdigit():
+            max_team_size = max(max_team_size, int(leaving_spots))
+
+        if teammate_idx is not None:
+            ws.update_cell(teammate_idx, ofj_col, "yes")
+            if max_team_size > 0:
+                ws.update_cell(teammate_idx, spots_col, str(max_team_size))
+
+    ws.update_cell(leaving_idx, team_col, "")
+    ws.update_cell(leaving_idx, ofj_col, "")
+    ws.update_cell(leaving_idx, spots_col, "")
+    return True
 
 
 def _clear_team_fields_for_team(team_name: str):
@@ -786,9 +831,10 @@ def render_registration():
                 <strong style="color:var(--accent);">Teams of 2&ndash;4: only one person needs to submit this form</strong>
                 on behalf of the whole team &mdash; enter your team name and the number of people
                 (including yourself).<br>
-                Solo participants can set a team name later in the
-                <strong>Team Hub</strong>. Once you name your solo team, it will already
-                show on the Registered Teams board. Opening it up for more people is optional.
+                <strong>Competing solo?</strong> Choose <em>"1 (solo team)"</em> and set your team name now &mdash;
+                it will appear on the Registered Teams board immediately.<br>
+                <strong>Looking for teammates?</strong> Choose <em>"1 (looking for a team)"</em> &mdash;
+                team name is optional at registration and can be set later in the <strong>Team Hub</strong>.
             </span>
         </div>
     </div>
@@ -808,26 +854,37 @@ def render_registration():
             reg_degree = st.text_input("Degree / Background")
             reg_team_size = st.selectbox(
                 "Team Size",
-                ["1 (looking for a team)", "2", "3", "4"],
-                help="Registering as a team? Only one teammate needs to submit this form — enter the total team size here.",
+                ["1 (looking for a team)", "1 (solo team)", "2", "3", "4"],
+                help=(
+                    "Solo team: you are competing alone under your own team name (required). "
+                    "Looking for a team: you want to be matched with others (team name optional now, set it in the Team Hub later). "
+                    "2–4: register your whole pre-formed team — only one person needs to submit."
+                ),
             )
 
-        # Team name: mandatory for teams of 2+, optional for solo
+        # Team name: mandatory for teams of 2+ and solo teams; optional for "looking for a team"
+        _team_name_required = reg_team_size in ("1 (solo team)", "2", "3", "4")
         reg_team = st.text_input(
-            "Team Name (required for teams of 2+)",
-            help="Solo participants can set a team name later in the Find Your Team section.",
+            "Team Name" + (" *" if _team_name_required else " (optional — set later in Team Hub)"),
+            help=(
+                "Required if you are a solo team or a pre-formed team of 2–4. "
+                "If you are looking for a team you can leave this blank and set it later."
+            ),
         )
         reg_interest = st.text_area("Why are you interested?", height=108)
 
         submitted = st.form_submit_button("Register Interest", use_container_width=True)
 
         if submitted:
-            is_team = reg_team_size in ("2", "3", "4")
+            is_preformed_team = reg_team_size in ("2", "3", "4")
+            is_solo_team = reg_team_size == "1 (solo team)"
             reg_team_clean = reg_team.strip()
             if not reg_name or not reg_email:
                 st.warning("Please fill in at least your name and email.")
-            elif is_team and not reg_team_clean:
-                st.warning("Team name is required when registering as a team of 2 or more.")
+            elif is_preformed_team and not reg_team_clean:
+                st.warning("Team name is required when registering as a pre-formed team of 2 or more.")
+            elif is_solo_team and not reg_team_clean:
+                st.warning("Team name is required for a solo team — it's how you'll appear on the leaderboard.")
             elif reg_team_clean and _team_name_taken_by_other_group(reg_team_clean):
                 st.error("That team name is already taken. Please choose a unique team name.")
             else:
