@@ -179,10 +179,9 @@ def compose_email(name: str, team_name: str, invite_code: str, invite_url: str) 
         f"Join link: {invite_url}\n\n"
         "How to join:\n"
         "1. Open the join link.\n"
-        "2. Confirm your team name on the login screen.\n"
-        "3. Click 'Join Game'.\n\n"
-        "Please do not share this link outside your team.\n\n"
-        "This is a draft message generated for organiser review only.\n"
+        "2. You will be automatically logged in to your team.\n"
+        "3. Start trading immediately!\n\n"
+        "Please do not share this link outside your team.\n"
     )
     return subject, body
 
@@ -209,7 +208,7 @@ def write_outputs(
         ])
         for team_name, members in teams.items():
             code = make_team_invite_code(team_name)
-            url = f"{app_url.rstrip('/')}/?invite={code}"
+            url = f"{app_url.rstrip('/')}/?invite={code}&team={team_name.replace(' ', '+')}"
             if team_name in created:
                 status = "created"
             elif team_name in would_create:
@@ -225,7 +224,7 @@ def write_outputs(
         ])
         for team_name, members in teams.items():
             code = make_team_invite_code(team_name)
-            url = f"{app_url.rstrip('/')}/?invite={code}"
+            url = f"{app_url.rstrip('/')}/?invite={code}&team={team_name.replace(' ', '+')}"
             for m in members:
                 subject, body = compose_email(m.name, team_name, code, url)
                 w.writerow([m.name, m.email, team_name, code, url, subject, body])
@@ -233,7 +232,7 @@ def write_outputs(
     with email_txt.open("w", encoding="utf-8") as f:
         for team_name, members in teams.items():
             code = make_team_invite_code(team_name)
-            url = f"{app_url.rstrip('/')}/?invite={code}"
+            url = f"{app_url.rstrip('/')}/?invite={code}&team={team_name.replace(' ', '+')}"
             f.write(f"=== TEAM: {team_name} | CODE: {code} ===\n")
             for m in members:
                 subject, body = compose_email(m.name, team_name, code, url)
