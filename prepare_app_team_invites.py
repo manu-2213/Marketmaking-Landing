@@ -40,7 +40,7 @@ from invites import make_team_invite_code, normalize_team_name  # noqa: E402
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
-DEFAULT_APP_URL = "https://market-making-hackathon.streamlit.app"
+DEFAULT_APP_URL = "https://market-making-qmml.streamlit.app"
 EMAIL_RE = re.compile(r"^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$", re.IGNORECASE)
 
 
