@@ -32,8 +32,8 @@ def compose_email(name: str, team_name: str, invite_code: str, invite_url: str) 
         f"Join link: {invite_url}\n\n"
         "How to join:\n"
         "1. Open the join link.\n"
-        "2. Confirm your team name on the login screen.\n"
-        "3. Click 'Join Game'.\n\n"
+        "2. You will be automatically logged in to your team.\n"
+        "3. Start trading immediately!\n\n"
         "Please do not share this link outside your team.\n"
     )
     return subject, body
@@ -56,7 +56,7 @@ def main():
         w.writerow(["team_name", "member_count", "invite_code", "invite_url", "status"])
         for team_name in sorted(DEMO_TEAMS.keys()):
             code = make_team_invite_code(team_name)
-            url = f"{APP_URL.rstrip('/')}/?invite={code}"
+            url = f"{APP_URL.rstrip('/')}/?invite={code}&team={team_name.replace(' ', '+')}"
             w.writerow([team_name, len(DEMO_TEAMS[team_name]), code, url, "ready"])
 
     # Write email drafts (CSV)
@@ -67,7 +67,7 @@ def main():
         ])
         for team_name in sorted(DEMO_TEAMS.keys()):
             code = make_team_invite_code(team_name)
-            url = f"{APP_URL.rstrip('/')}/?invite={code}"
+            url = f"{APP_URL.rstrip('/')}/?invite={code}&team={team_name.replace(' ', '+')}"
             for i, email in enumerate(DEMO_TEAMS[team_name], 1):
                 name = f"Team Member {i}"
                 subject, body = compose_email(name, team_name, code, url)
@@ -77,7 +77,7 @@ def main():
     with email_txt.open("w", encoding="utf-8") as f:
         for team_name in sorted(DEMO_TEAMS.keys()):
             code = make_team_invite_code(team_name)
-            url = f"{APP_URL.rstrip('/')}/?invite={code}"
+            url = f"{APP_URL.rstrip('/')}/?invite={code}&team={team_name.replace(' ', '+')}"
             f.write(f"=== TEAM: {team_name} | CODE: {code} ===\n")
             for i, email in enumerate(DEMO_TEAMS[team_name], 1):
                 name = f"Team Member {i}"
@@ -97,7 +97,7 @@ def main():
     print("Sample invite code and URL:")
     team = list(DEMO_TEAMS.keys())[0]
     code = make_team_invite_code(team)
-    url = f"{APP_URL.rstrip('/')}/?invite={code}"
+    url = f"{APP_URL.rstrip('/')}/?invite={code}&team={team.replace(' ', '+')}"
     print(f"  Team: {team}")
     print(f"  Code: {code}")
     print(f"  URL:  {url}")

@@ -1,0 +1,117 @@
+=== TEAM: Alpha Traders | CODE: 5DCC89FF ===
+TO: Team Member 1 <alice@qmul.ac.uk>
+SUBJECT: Your Market-Making Hackathon Team Link (Alpha Traders)
+Hi Team Member 1,
+
+Your team has been set up for the Market-Making Hackathon app.
+
+Team name: Alpha Traders
+Join code: 5DCC89FF
+Join link: https://market-making-qmml.streamlit.app/?invite=5DCC89FF&team=Alpha+Traders
+
+How to join:
+1. Open the join link.
+2. Confirm your team name on the login screen.
+3. Click 'Join Game'.
+
+Please do not share this link outside your team.
+
+---
+
+TO: Team Member 2 <bob@qmul.ac.uk>
+SUBJECT: Your Market-Making Hackathon Team Link (Alpha Traders)
+Hi Team Member 2,
+
+Your team has been set up for the Market-Making Hackathon app.
+
+Team name: Alpha Traders
+Join code: 5DCC89FF
+Join link: https://market-making-qmml.streamlit.app/?invite=5DCC89FF&team=Alpha+Traders
+
+How to join:
+1. Open the join link.
+2. Confirm your team name on the login screen.
+3. Click 'Join Game'.
+
+Please do not share this link outside your team.
+
+---
+
+=== TEAM: Beta Squad | CODE: 60F820DB ===
+TO: Team Member 1 <charlie@qmul.ac.uk>
+SUBJECT: Your Market-Making Hackathon Team Link (Beta Squad)
+Hi Team Member 1,
+
+Your team has been set up for the Market-Making Hackathon app.
+
+Team name: Beta Squad
+Join code: 60F820DB
+Join link: https://market-making-qmml.streamlit.app/?invite=60F820DB&team=Beta+Squad
+
+How to join:
+1. Open the join link.
+2. Confirm your team name on the login screen.
+3. Click 'Join Game'.
+
+Please do not share this link outside your team.
+
+---
+
+=== TEAM: Gamma Team | CODE: CE76520D ===
+TO: Team Member 1 <diana@qmul.ac.uk>
+SUBJECT: Your Market-Making Hackathon Team Link (Gamma Team)
+Hi Team Member 1,
+
+Your team has been set up for the Market-Making Hackathon app.
+
+Team name: Gamma Team
+Join code: CE76520D
+Join link: https://market-making-qmml.streamlit.app/?invite=CE76520D&team=Gamma+Team
+
+How to join:
+1. Open the join link.
+2. Confirm your team name on the login screen.
+3. Click 'Join Game'.
+
+Please do not share this link outside your team.
+
+---
+
+TO: Team Member 2 <eve@qmul.ac.uk>
+SUBJECT: Your Market-Making Hackathon Team Link (Gamma Team)
+Hi Team Member 2,
+
+Your team has been set up for the Market-Making Hackathon app.
+
+Team name: Gamma Team
+Join code: CE76520D
+Join link: https://market-making-qmml.streamlit.app/?invite=CE76520D&team=Gamma+Team
+
+How to join:
+1. Open the join link.
+2. Confirm your team name on the login screen.
+3. Click 'Join Game'.
+
+Please do not share this link outside your team.
+
+---
+
+TO: Team Member 3 <frank@qmul.ac.uk>
+SUBJECT: Your Market-Making Hackathon Team Link (Gamma Team)
+Hi Team Member 3,
+
+Your team has been set up for the Market-Making Hackathon app.
+
+Team name: Gamma Team
+Join code: CE76520D
+Join link: https://market-making-qmml.streamlit.app/?invite=CE76520D&team=Gamma+Team
+
+How to join:
+1. Open the join link.
+2. Confirm your team name on the login screen.
+3. Click 'Join Game'.
+
+Please do not share this link outside your team.
+
+---
+
