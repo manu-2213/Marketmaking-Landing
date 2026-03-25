@@ -8,6 +8,9 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 
+REGISTRATION_OPEN = False
+
+
 # ── Google Sheets persistence ─────────────────────────────────────────────────
 
 _SCOPES = [
@@ -461,8 +464,8 @@ def render_hero():
                     in a live simulated financial market. One week. Real strategies. One leaderboard.
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;">
-                    <a href="#register" class="btn-primary">Register Your Team</a>
-                    <a href="#register" class="btn-secondary">Show Interest</a>
+                    <a href="#register" class="btn-primary">Registrations Closed</a>
+                    <a href="#register" class="btn-secondary">Join Waitlist Updates</a>
                 </div>
             </div>
         </div>
@@ -821,6 +824,21 @@ def render_hype():
 def render_registration():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div id="register"></div>', unsafe_allow_html=True)
+
+    if not REGISTRATION_OPEN:
+        st.markdown("""
+        <div style="text-align:center;margin-bottom:40px;">
+            <div class="section-tag">Update</div>
+            <div class="section-title">Registrations Are Closed</div>
+            <div class="section-subtitle" style="margin:0 auto;">
+                The registration window for this hackathon is now closed.<br>
+                You can still explore teams and the leaderboard below.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.info("Signups are closed. If you need support, contact the organizers on Discord.")
+        return
+
     st.markdown("""
     <div style="text-align:center;margin-bottom:40px;">
         <div class="section-tag">Join Now</div>
@@ -1266,9 +1284,9 @@ def render_cta():
     st.markdown("""
     <div class="cta-banner">
         <div class="cta-title">Think your AI can beat the market?</div>
-        <div class="cta-sub">Join the Market-Making AI Hackathon and find out.</div>
+        <div class="cta-sub">Registrations are closed. Follow updates and watch the teams compete.</div>
         <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
-            <a href="#register" class="btn-primary">Register Now</a>
+            <a href="#register" class="btn-primary">Registrations Closed</a>
             <a href="#register" class="btn-secondary">Join the Discord</a>
         </div>
     </div>
