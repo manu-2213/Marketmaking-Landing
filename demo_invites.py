@@ -19,7 +19,7 @@ DEMO_TEAMS = {
     "Gamma Team": ["diana@qmul.ac.uk", "eve@qmul.ac.uk", "frank@qmul.ac.uk"],
 }
 
-APP_URL = "https://market-making-hackathon.streamlit.app"
+APP_URL = "https://market-making-qmml.streamlit.app"
 
 
 def compose_email(name: str, team_name: str, invite_code: str, invite_url: str) -> tuple[str, str]:
