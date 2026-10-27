@@ -314,9 +314,7 @@ def _render_trader_game():
 
     question = questions[round_index]
     _display_running_pnl(results, "Trader", "Sample market maker")
-    _display_round(
-        question, round_index, len(questions), revealed, show_question=revealed
-    )
+    _display_round(question, round_index, len(questions), revealed)
     if revealed:
         result = results[-1]
         _display_round_pnl(
@@ -468,18 +466,18 @@ def _render_maker_game():
 
 def render_quote_lab():
     with st.container(border=True, key="quote_lab"):
-        st.markdown(
-            """
+        role = st.session_state.get("quote_lab_role")
+        if role is None:
+            st.markdown(
+                """
 <div class="quote-lab-heading" id="quote-lab">
     <p class="eyebrow">A six-round market simulation</p>
     <h2>Step into the market.</h2>
     <p>Choose your role, make a decision each round, and watch your P&amp;L update.</p>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
-        role = st.session_state.get("quote_lab_role")
-        if role is None:
+                unsafe_allow_html=True,
+            )
             st.markdown(
                 '<div class="game-role-intro"><p>Choose how you want to play.</p>'
                 '<span>Both roles run for six rounds.</span></div>',
@@ -504,19 +502,16 @@ def render_quote_lab():
                     _start_game("maker")
         elif role == "trader":
             st.markdown(
-                "Each round, choose whether to buy at the ask or sell at the bid, "
-                "then set your share count."
+                '<div class="game-active-heading">TRADER · SIX ROUNDS</div>',
+                unsafe_allow_html=True,
             )
             _render_trader_game()
         elif role == "maker":
             st.markdown(
-                "Set a fair-value estimate and spread. A sample trader will take one side."
+                '<div class="game-active-heading">MARKET MAKER · SIX ROUNDS</div>',
+                unsafe_allow_html=True,
             )
             _render_maker_game()
-        st.caption(
-            "P&L uses simulation credits (percentage price move × shares). "
-            "No real money or live market data."
-        )
 
 
 def render_who():

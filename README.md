@@ -73,12 +73,12 @@ The site uses a dark navy palette, warm off-white type, cobalt actions, more
 balanced typography, a compact event schedule and a grouped registration form.
 The interactive section starts with a role choice: Trader or Market Maker. Each
 role plays six easy-to-hard rounds, with cumulative P&L shown throughout. Before
-locking a trade, Traders see only the sample bid and ask, then choose a side and
-share count; the question and answer are revealed after the trade. Exactly half
-the sample quotes are fair, with the rest mispriced. Market makers see each
-question, set an estimate and spread, and trade against a sample trader. Both
-roles have zero-sum P&L, a round summary, and an option to restart as the other
-role. Scores use simulation credits, not real money or live event data.
+locking a trade, Traders see the round's question and the sample bid and ask,
+then choose a side and share count; the answer is revealed after the trade.
+Exactly half the sample quotes are fair, with the rest mispriced. Market makers
+see each question, set an estimate and spread, and trade against a sample trader.
+Both roles have zero-sum P&L, a round summary, and an option to restart as the
+other role. Scores use simulation credits, not real money or live event data.
 Team-management forms are available on demand rather than filling the landing
 page. Responsive styles are in [styles.css](styles.css),
 with native controls themed in [.streamlit/config.toml](.streamlit/config.toml).
