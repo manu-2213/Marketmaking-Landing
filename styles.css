@@ -132,23 +132,8 @@ h1, h2, h3, p { overflow-wrap: break-word; }
 .st-key-quote_lab,
 .st-key-quote_lab button,
 .st-key-quote_lab input,
-.st-key-quote_lab [role="tab"],
 .st-key-quote_lab [role="radio"] {
     font-family: "Inter", "Helvetica Neue", Arial, sans-serif !important;
-}
-.st-key-quote_lab [data-baseweb="tab-list"] {
-    gap: 8px;
-    border-bottom: 1px solid var(--border);
-}
-.st-key-quote_lab [data-baseweb="tab"] {
-    min-height: 48px;
-    padding: 10px 18px;
-    color: var(--text-secondary);
-    font-size: 15px;
-    font-weight: 600;
-}
-.st-key-quote_lab [data-baseweb="tab"][aria-selected="true"] {
-    color: var(--text);
 }
 .quote-lab-heading { max-width: 720px; margin-bottom: 24px; }
 .quote-lab-heading .eyebrow { margin-bottom: 10px; }
@@ -178,8 +163,21 @@ h1, h2, h3, p { overflow-wrap: break-word; }
     font-size: 13px !important;
 }
 .st-key-quote_lab [data-testid="stMetricValue"] { font-size: 30px; }
-.st-key-quote_lab [data-testid="stButton"] > button { min-height: 48px; }
+.st-key-quote_lab [data-testid="stButton"] > button { min-height: 48px; width: 100%; }
 .st-key-quote_lab [data-testid="stButton"] p { font-size: 15px; font-weight: 600; }
+.game-role-intro { margin: 28px 0 16px; }
+.game-role-intro p { color: var(--text); font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+.game-role-intro span { color: var(--text-muted); font-size: 14px; }
+.game-role-card {
+    min-height: 94px;
+    background: #0b121d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 12px;
+}
+.game-role-card span { color: var(--accent); font-size: 12px; font-weight: 650; letter-spacing: .1em; }
+.game-role-card p { color: var(--text-secondary); font-size: 15px; line-height: 1.6; margin: 10px 0 0; }
 .game-question {
     margin: 18px 0 22px;
     padding: 20px 22px;
