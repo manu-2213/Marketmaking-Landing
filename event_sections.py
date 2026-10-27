@@ -6,6 +6,8 @@ import random
 import streamlit as st
 
 from event_config import EVENT_CONFIG
+from components import get_registration_stats
+from sheets_store import STORAGE_ERRORS
 
 
 def _section_heading(label, title, description=""):
@@ -18,14 +20,14 @@ def _section_heading(label, title, description=""):
 
 
 def render_hero():
-    registration_label = "Registration open" if EVENT_CONFIG["registration_open"] else "Coming soon"
+    registration_label = "Early interest open" if EVENT_CONFIG["registration_open"] else "Coming soon"
     st.html(
         f"""
 <nav class="site-nav" aria-label="Main navigation">
     <a class="brand" href="#top"><span class="brand-mark">QMML<span>/</span></span>
     <span class="brand-caption">Machine Learning Society<br>Queen Mary University of London</span></a>
     <div class="nav-links"><a href="#challenge">The challenge</a><a href="#how-it-works">How it works</a>
-    <a class="nav-cta" href="#register">Register <span aria-hidden="true">↗</span></a></div>
+    <a class="nav-cta" href="#register">Register interest <span aria-hidden="true">↗</span></a></div>
 </nav>
 <section class="hero" id="top" aria-label="AI Market-Making Hackathon 2026">
     <div class="hero-copy">
@@ -33,7 +35,7 @@ def render_hero():
         <p class="hero-event">{escape(EVENT_CONFIG["title"])}</p>
         <h1>Make the<br><span class="market-accent">Market.</span></h1>
         <p class="hero-description">Your model. Your market.<br>Turn machine learning into a competitive edge.</p>
-        <div class="hero-actions"><a class="button button-blue" href="#register">Register now <span aria-hidden="true">↗</span></a>
+        <div class="hero-actions"><a class="button button-blue" href="#register">Register interest <span aria-hidden="true">↗</span></a>
         <a class="text-link" href="#challenge">Explore the challenge <span aria-hidden="true">↓</span></a></div>
     </div>
     <aside class="event-pass" aria-label="Event dates">
@@ -50,15 +52,27 @@ def render_hero():
 
 
 def render_stats():
+    try:
+        team_count, member_count = get_registration_stats()
+        team_label = f"{team_count:,}"
+        member_label = f"{member_count:,}"
+        counts_unavailable = False
+    except STORAGE_ERRORS:
+        team_label = "Unavailable"
+        member_label = "Unavailable"
+        counts_unavailable = True
+
     st.markdown(
         f"""
 <section class="detail-strip" aria-label="Participation at a glance">
-    <div><span class="eyebrow">01 / The people</span><strong>All universities welcome</strong></div>
-    <div><span class="eyebrow">02 / The team</span><strong>{escape(EVENT_CONFIG["team_size"])}</strong></div>
-    <div><span class="eyebrow">03 / The starting point</span><strong>Python. ML. Curiosity.</strong></div>
+    <div><span class="eyebrow">01 / Teams registered</span><strong>{escape(team_label)}</strong></div>
+    <div><span class="eyebrow">02 / People represented</span><strong>{escape(member_label)}</strong></div>
+    <div><span class="eyebrow">03 / Early interest</span><strong>We’ll email when tickets go on sale</strong></div>
 </section>
 """, unsafe_allow_html=True,
     )
+    if counts_unavailable:
+        st.caption("Live registration counts are temporarily unavailable.")
 
 
 def render_features():

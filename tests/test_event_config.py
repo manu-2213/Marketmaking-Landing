@@ -125,6 +125,27 @@ class EventConfigTests(unittest.TestCase):
                 rows = CSVRegistrationStore(path).get_all_values()
                 self.assertEqual(rows[1][5], "Market Makers")
 
+    def test_registration_stats_count_teams_and_people_without_double_counting(self):
+        rows = [
+            ["team_name", "team_size"],
+            ["Market Makers", "3"],
+            ["market makers", "1 (looking for a team)"],
+            ["New Team", "1 (looking for a team)"],
+            ["New Team", "1 (looking for a team)"],
+            ["", "1 (looking for a team)"],
+            ["", "4"],
+            ["Solo interest", "1 (looking for a team)"],
+        ]
+
+        class InMemoryStore:
+            def get_all_values(self):
+                return rows
+
+        with patch.object(
+            components, "_get_registration_store", return_value=InMemoryStore()
+        ):
+            self.assertEqual(components.get_registration_stats(), (3, 11))
+
     def test_legacy_registration_csv_is_extended_without_losing_rows(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "registrations.csv"

@@ -177,10 +177,17 @@ class RegistrationFormTests(unittest.TestCase):
         from pathlib import Path
 
         with patch("components._get_registration_store") as store:
+            store.return_value.get_all_values.side_effect = RegistrationStorageError(
+                "Google Sheets is not configured."
+            )
             app = AppTest.from_file(str(Path(__file__).parents[1] / "landing.py")).run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(len(app.get("form")), 1)
-        store.assert_not_called()
+        store.assert_called_once()
+        self.assertIn(
+            "Live registration counts are temporarily unavailable.",
+            [caption.value for caption in app.caption],
+        )
 
 
 if __name__ == "__main__":

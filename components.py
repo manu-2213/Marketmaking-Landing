@@ -345,6 +345,54 @@ def _get_all_named_teams():
     return result
 
 
+def get_registration_stats():
+    """Return registered team count and represented people for the current event."""
+    _, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return 0, 0
+
+    header = rows[0]
+    preformed_teams = {}
+    unnamed_team_count = 0
+    unnamed_team_members = 0
+    solo_groups = {}
+    solo_people = 0
+
+    for row in rows[1:]:
+        record = _row_to_dict(header, row)
+        team_name = (record.get("team_name") or "").strip().casefold()
+        team_size = (record.get("team_size") or "").strip()
+        if team_size in ("2", "3", "4"):
+            if team_name:
+                preformed_teams.setdefault(team_name, int(team_size))
+            else:
+                unnamed_team_count += 1
+                unnamed_team_members += int(team_size)
+        elif team_size == _SOLO_LABEL and team_name:
+            solo_groups[team_name] = solo_groups.get(team_name, 0) + 1
+        else:
+            solo_people += 1
+
+    formed_solo_teams = {
+        name: count
+        for name, count in solo_groups.items()
+        if name not in preformed_teams and count >= 2
+    }
+    solo_people += sum(
+        count
+        for name, count in solo_groups.items()
+        if name not in preformed_teams and count < 2
+    )
+    team_count = len(preformed_teams) + unnamed_team_count + len(formed_solo_teams)
+    member_count = (
+        sum(preformed_teams.values())
+        + unnamed_team_members
+        + sum(formed_solo_teams.values())
+        + solo_people
+    )
+    return team_count, member_count
+
+
 def _get_teams_without_name():
     """Return unique team registrations (team_size 2-4) that have no team_name.
     Each row is one registration representing a whole team."""
@@ -803,13 +851,13 @@ def render_registration():
     with info:
         st.markdown("""
 <div class="registration-intro">
-    <p class="eyebrow"><span class="status-dot"></span> 04 / Registration open</p>
-    <h2>Your next<br>challenge<br>starts here.</h2>
-    <p>Secure your place in the AI Market-Making Hackathon.</p>
+    <p class="eyebrow"><span class="status-dot"></span> 04 / Early interest open</p>
+    <h2>Join the<br>early-interest<br>list.</h2>
+    <p>This is not a ticket purchase. We’ll email you when tickets go on sale.</p>
     <div class="registration-facts">
-        <div><span>01</span><p><strong>All universities welcome</strong><br>Register with your student details.</p></div>
-        <div><span>02</span><p><strong>Your team, or your next team</strong><br>Come with 2–4 people, or find teammates.</p></div>
-        <div><span>03</span><p><strong>Two dates. In person.</strong><br>19 &amp; 26 November 2026.</p></div>
+        <div><span>01</span><p><strong>Early interest only</strong><br>No ticket or payment is required now.</p></div>
+        <div><span>02</span><p><strong>Ticket updates by email</strong><br>We’ll contact you when tickets are released.</p></div>
+        <div><span>03</span><p><strong>Team or solo</strong><br>Register your team or look for teammates.</p></div>
     </div>
     <p class="privacy-note">Student IDs and email addresses are kept private.
     Only team names and team sizes appear on the public board.</p>
@@ -817,7 +865,9 @@ def render_registration():
 """, unsafe_allow_html=True)
     with form_column:
         if st.session_state.get("registration_saved_2026"):
-            st.success("Registration saved. You're on the list.")
+            st.success(
+                "You're on the early-interest list. We'll email you when tickets are released."
+            )
             st.write("Your details have been saved to the organiser's Google Sheet.")
             st.caption("Looking for teammates? Open the Team Hub below.")
             if st.button("Register another participant", key="register_another"):
@@ -829,8 +879,8 @@ def render_registration():
             return
 
         with st.form("registration_form", clear_on_submit=False):
-            st.markdown('<div class="form-title"><h3>Join the competition</h3>'
-                        '<p>Required fields are marked with an asterisk.</p></div>',
+            st.markdown('<div class="form-title"><h3>Register your interest</h3>'
+                        '<p>This is not a ticket purchase. Required fields are marked with an asterisk.</p></div>',
                         unsafe_allow_html=True)
             st.markdown('<p class="form-section-label">01 / Your details</p>', unsafe_allow_html=True)
             a, b = st.columns(2)
@@ -858,7 +908,7 @@ def render_registration():
             with st.expander("Anything else? (optional)"):
                 reg_interest = st.text_area("A note for the organisers", key="signup_note", height=80)
             submitted = st.form_submit_button(
-                "Register for the hackathon  ↗", use_container_width=True, type="primary"
+                "Register interest  ↗", use_container_width=True, type="primary"
             )
             st.caption("Your details are used to organise this event and coordinate teams.")
 
@@ -1187,10 +1237,10 @@ def render_registered_teams():
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("""
     <div style="text-align:center;margin-bottom:40px;">
-        <div class="section-tag">The Competition</div>
-        <div class="section-title">Registered Teams</div>
+            <div class="section-tag">Early interest</div>
+            <div class="section-title">Teams interested</div>
         <div class="section-subtitle" style="margin:0 auto;">
-            These teams are locked in. Is yours on the board?
+                These teams have registered interest. Ticket details will follow by email.
         </div>
     </div>
     """, unsafe_allow_html=True)
