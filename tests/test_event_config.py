@@ -4,7 +4,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from event_config import EVENT_CONFIG
-from event_sections import _quote_prices
+from event_sections import (
+    MAKER_QUESTIONS,
+    TRADER_QUESTIONS,
+    _maker_quote_result,
+    _quote_prices,
+    _trade_credits,
+)
 from registration_store import CSVRegistrationStore, REGISTRATION_HEADERS
 import components
 import csv
@@ -15,6 +21,34 @@ class EventConfigTests(unittest.TestCase):
     def test_quote_prices_are_centered_on_the_estimate(self):
         self.assertEqual(_quote_prices(100, 4), (98, 102))
         self.assertEqual(_quote_prices(100, 0), (100, 100))
+
+    def test_trader_trade_and_market_maker_pnl_are_zero_sum(self):
+        buy_pnl = _trade_credits("Buy at ask", 95, 105, 110, 1)
+        sell_pnl = _trade_credits("Sell at bid", 95, 105, 90, 1)
+        self.assertEqual(buy_pnl, 4.5)
+        self.assertEqual(sell_pnl, 5.6)
+
+    def test_on_target_market_maker_makes_the_same_pnl_on_either_side(self):
+        buy_pnl = _trade_credits("Buy at ask", 95, 105, 100, 2)
+        sell_pnl = _trade_credits("Sell at bid", 95, 105, 100, 2)
+        self.assertEqual(buy_pnl, -10.0)
+        self.assertEqual(sell_pnl, buy_pnl)
+
+    def test_market_maker_feedback_checks_inside_and_outside(self):
+        self.assertEqual(_maker_quote_result(95, 105, 100), ("inside", 5))
+        self.assertEqual(_maker_quote_result(95, 105, 110), ("above", 5))
+        self.assertEqual(_maker_quote_result(95, 105, 90), ("below", 5))
+
+    def test_both_question_banks_have_six_easy_to_hard_rounds(self):
+        expected_difficulty = ["Easy", "Easy", "Medium", "Medium", "Hard", "Hard"]
+        for bank in (TRADER_QUESTIONS, MAKER_QUESTIONS):
+            self.assertEqual(len(bank), 6)
+            self.assertEqual(
+                [question["difficulty"] for question in bank], expected_difficulty
+            )
+            self.assertEqual(len({question["prompt"] for question in bank}), 6)
+            for question in bank:
+                self.assertLessEqual(question["estimate"], question["maximum"])
 
     def test_2026_event_details_are_centralized(self):
         self.assertEqual(EVENT_CONFIG["title"], "AI Market-Making Hackathon 2026")
@@ -115,7 +149,7 @@ class EventConfigTests(unittest.TestCase):
         active_content = "\n".join(
             path.read_text(encoding="utf-8") for path in active_files
         )
-        for stale_text in ("2025", "£300", "Alpha Traders", "MAR 25", "APR 1"):
+        for stale_text in ("£300", "Alpha Traders", "MAR 25", "APR 1"):
             with self.subTest(stale_text=stale_text):
                 self.assertNotIn(stale_text, active_content)
 

@@ -59,7 +59,8 @@ python -m unittest discover -s tests -v
 Tests use temporary files and mocked Google Sheets; they never send test
 registrations to the real account. Coverage includes legacy-row preservation,
 current-event filtering, header mapping, raw writes, form submission, required team
-name, duplicate email handling and failed-write feedback.
+name, duplicate email handling, failed-write feedback, zero-sum trade P&L and
+inside/outside-spread feedback.
 
 The original account's sheet was reached with read-only credentials during this
 update. No production participant data was written, erased or printed. Deployment
@@ -69,9 +70,13 @@ still required. The invitation files and separate email scripts remain unchanged
 ## Design
 
 The site uses a dark navy palette, warm off-white type, cobalt actions, more
-readable typography, a compact event schedule and a grouped registration form.
-The interactive quote sandbox lets visitors explore bid/ask values and compare
-their spread with a hypothetical example; it is not connected to live market or
-competition data. Team-management forms are available on demand rather than
+balanced typography, a compact event schedule and a grouped registration form.
+The interactive section has separate Trader and Market Maker tabs, each with a
+six-question easy-to-hard game. Answers remain hidden until a round is locked.
+Traders choose a side and share count against a sample maker; exactly half the
+sample quotes are fair, with the rest mispriced. Market makers set their own
+estimate and spread against a sample trader. Both tabs keep zero-sum cumulative
+P&L and show a round summary. Scores use simulation credits, not real money or
+live event data. Team-management forms are available on demand rather than
 filling the landing page. Responsive styles are in [styles.css](styles.css),
 with native controls themed in [.streamlit/config.toml](.streamlit/config.toml).

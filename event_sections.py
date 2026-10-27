@@ -1,6 +1,7 @@
 """Editorial presentation for the QMML hackathon."""
 
 from html import escape
+import random
 
 import streamlit as st
 
@@ -107,9 +108,353 @@ def render_timeline():
     )
 
 
+TRADER_QUESTIONS = (
+    {
+        "difficulty": "Easy", "prompt": "How many minutes are in 24 hours?",
+        "answer": 1_440, "unit": "minutes", "estimate": 1_200,
+        "maximum": 3_000, "step": 10, "source": "Calculation",
+    },
+    {
+        "difficulty": "Easy", "prompt": "How many faces does a common die have?",
+        "answer": 6, "unit": "sides", "estimate": 5,
+        "maximum": 12, "step": 1, "source": "Standard die",
+    },
+    {
+        "difficulty": "Medium", "prompt": "How long is Earth's circumference around the equator?",
+        "answer": 40_075, "unit": "km", "estimate": 38_000,
+        "maximum": 80_000, "step": 500, "source": "NASA Earth fact sheet",
+        "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+    },
+    {
+        "difficulty": "Medium", "prompt": "How many people lived in Vanuatu in 2023?",
+        "answer": 320_409, "unit": "people", "estimate": 300_000,
+        "maximum": 600_000, "step": 5_000,
+        "source": "World Bank population data · 2023",
+        "url": "https://api.worldbank.org/v2/country/VUT/indicator/SP.POP.TOTL?date=2023&format=json",
+    },
+    {
+        "difficulty": "Hard", "prompt": "What is the average distance from Earth to the Moon?",
+        "answer": 384_400, "unit": "km", "estimate": 350_000,
+        "maximum": 700_000, "step": 5_000, "source": "NASA Moon facts",
+        "url": "https://science.nasa.gov/moon/facts/",
+    },
+    {
+        "difficulty": "Hard", "prompt": "How high is Mount Everest above sea level?",
+        "answer": 8_849, "unit": "m", "estimate": 8_000,
+        "maximum": 15_000, "step": 100,
+        "source": "Encyclopaedia Britannica · Mount Everest",
+        "url": "https://www.britannica.com/place/Mount-Everest",
+    },
+)
+
+MAKER_QUESTIONS = (
+    {
+        "difficulty": "Easy", "prompt": "How many planets are in our Solar System?",
+        "answer": 8, "unit": "planets", "estimate": 7,
+        "maximum": 16, "step": 1, "source": "NASA · Solar System planets",
+        "url": "https://science.nasa.gov/solar-system/planets/",
+    },
+    {
+        "difficulty": "Easy", "prompt": "How many cards are in a standard deck without jokers?",
+        "answer": 52, "unit": "cards", "estimate": 48,
+        "maximum": 100, "step": 1, "source": "Standard playing-card deck",
+    },
+    {
+        "difficulty": "Medium", "prompt": "How tall is the Eiffel Tower, including its antenna?",
+        "answer": 330, "unit": "m", "estimate": 300,
+        "maximum": 600, "step": 5, "source": "Eiffel Tower · key figures",
+        "url": "https://www.toureiffel.paris/en/the-monument/key-figures",
+    },
+    {
+        "difficulty": "Medium", "prompt": "What is the Moon's circumference?",
+        "answer": 10_921, "unit": "km", "estimate": 10_000,
+        "maximum": 22_000, "step": 100, "source": "NASA Moon facts",
+        "url": "https://science.nasa.gov/moon/facts/",
+    },
+    {
+        "difficulty": "Hard",
+        "prompt": "What is the speed of light in a vacuum, in kilometres per second?",
+        "answer": 299_792.458, "unit": "km/s", "estimate": 280_000,
+        "maximum": 500_000, "step": 1_000, "source": "NIST · speed of light",
+        "url": "https://physics.nist.gov/cgi-bin/cuu/Value?c",
+    },
+    {
+        "difficulty": "Hard", "prompt": "How many confirmed moons did Saturn have in March 2025?",
+        "answer": 274, "unit": "moons", "estimate": 200,
+        "maximum": 500, "step": 5, "source": "NASA · Saturn's moons (March 2025)",
+        "url": "https://science.nasa.gov/saturn/moons/",
+    },
+)
+
+
 def _quote_prices(estimate, spread):
     half_spread = spread / 2
     return estimate - half_spread, estimate + half_spread
+
+
+def _maker_quote_result(bid, ask, answer):
+    if answer < bid:
+        return "below", bid - answer
+    if answer > ask:
+        return "above", answer - ask
+    return "inside", min(answer - bid, ask - answer)
+
+
+def _session_scenarios(key):
+    if key not in st.session_state:
+        if key == "trader_scenarios":
+            on_target_rounds = [True, True, True, False, False, False]
+            random.shuffle(on_target_rounds)
+            directions = [random.choice((-1, 1)) for _ in range(6)]
+            st.session_state[key] = list(zip(on_target_rounds, directions))
+        else:
+            actions = ["Buy at ask"] * 3 + ["Sell at bid"] * 3
+            random.shuffle(actions)
+            st.session_state[key] = actions
+    return st.session_state[key]
+
+
+def _trade_credits(action, bid, ask, answer, shares):
+    move_per_share = answer - ask if action == "Buy at ask" else bid - answer
+    return round(move_per_share / answer * 100 * shares, 1)
+
+
+def _display_value(value):
+    return f"{value:,.2f}" if not float(value).is_integer() else f"{value:,.0f}"
+
+
+def _display_round(question, round_index, total, revealed):
+    st.progress(
+        (round_index + int(revealed)) / total,
+        text=f"Round {round_index + 1} of {total}  ·  {question['difficulty']}",
+    )
+    st.markdown(
+        f'<div class="game-question"><span>{question["difficulty"].upper()} '
+        f'QUESTION {round_index + 1:02d} / {total:02d}</span>'
+        f'<p>{escape(question["prompt"])}</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _display_answer(question):
+    st.markdown(
+        f'**Answer:** {_display_value(question["answer"])} {question["unit"]}'
+    )
+    if question.get("url"):
+        st.caption(f'Reference: [{question["source"]}]({question["url"]})')
+    else:
+        st.caption(f'Reference: {question["source"]}')
+
+
+def _display_round_pnl(role, opponent, user_pnl, opponent_pnl):
+    if user_pnl > 0:
+        st.success(
+            f"You made {user_pnl:+.1f} simulation credits as {role}; "
+            f"{opponent} lost {abs(opponent_pnl):.1f}."
+        )
+    elif user_pnl < 0:
+        st.warning(
+            f"You lost {abs(user_pnl):.1f} simulation credits as {role}; "
+            f"{opponent} made {opponent_pnl:+.1f}."
+        )
+    else:
+        st.info("No P&L this round.")
+
+
+def _display_game_summary(key, results, role, opponent):
+    user_total = round(sum(result["user_pnl"] for result in results), 1)
+    opponent_total = round(sum(result["opponent_pnl"] for result in results), 1)
+    user_col, opponent_col = st.columns(2)
+    user_col.metric(f"YOUR P&L · {role.upper()}", f"{user_total:+.1f} credits")
+    opponent_col.metric(f"{opponent.upper()} P&L", f"{opponent_total:+.1f} credits")
+    for index, result in enumerate(results):
+        with st.expander(
+            f'Round {index + 1} · {result["difficulty"]} · {result["prompt"]}'
+        ):
+            st.markdown(
+                f'**Answer:** {_display_value(result["answer"])} {result["unit"]}  ·  '
+                f'**Your P&L:** {result["user_pnl"]:+.1f} credits  ·  '
+                f'**{opponent} P&L:** {result["opponent_pnl"]:+.1f} credits'
+            )
+    st.caption("P&L is measured in simulation credits. No real money is involved.")
+    if st.button("Play again", key=f"{key}_restart"):
+        st.session_state[f"{key}_round"] = 0
+        st.session_state[f"{key}_results"] = []
+        st.session_state[f"{key}_revealed"] = False
+        st.session_state.pop(f"{key}_scenarios", None)
+        st.rerun()
+
+
+def _render_trader_tab():
+    key = "trader"
+    questions = TRADER_QUESTIONS
+    round_index = st.session_state.setdefault(f"{key}_round", 0)
+    results = st.session_state.setdefault(f"{key}_results", [])
+    revealed = st.session_state.setdefault(f"{key}_revealed", False)
+    if round_index == len(questions):
+        _display_game_summary(key, results, "Trader", "Sample market maker")
+        return
+
+    question = questions[round_index]
+    _display_round(question, round_index, len(questions), revealed)
+    if revealed:
+        result = results[-1]
+        _display_round_pnl(
+            "trader", "the sample market maker",
+            result["user_pnl"], result["opponent_pnl"],
+        )
+        if result["maker_on_target"]:
+            st.info("The sample market maker was on the money. Either side gave the same result.")
+        else:
+            st.info("The sample market maker was off the money. Your choice of side decided the result.")
+        st.markdown(
+            f'**Your estimate:** {_display_value(result["estimate"])} {question["unit"]}  ·  '
+            f'**Trade:** {result["action"]}  ·  **Shares:** {result["shares"]}'
+        )
+        _display_answer(question)
+        if st.button("Next question", key=f"{key}_next_{round_index}"):
+            st.session_state[f"{key}_round"] += 1
+            st.session_state[f"{key}_revealed"] = False
+            st.rerun()
+        return
+
+    maker_on_target, direction = _session_scenarios("trader_scenarios")[round_index]
+    answer = question["answer"]
+    spread = answer * 0.1
+    center = answer if maker_on_target else answer + direction * 2 * spread
+    bid, ask = _quote_prices(center, spread)
+    bid_col, ask_col = st.columns(2)
+    bid_col.metric("SAMPLE BID · SELL TO IT", f'{_display_value(bid)} {question["unit"]}')
+    ask_col.metric("SAMPLE ASK · BUY FROM IT", f'{_display_value(ask)} {question["unit"]}')
+    estimate = st.slider(
+        "Your estimate",
+        min_value=0,
+        max_value=question["maximum"],
+        value=question["estimate"],
+        step=question["step"],
+        key=f"{key}_estimate_{round_index}",
+    )
+    action = st.radio(
+        "Choose a side",
+        ("Buy at ask", "Sell at bid"),
+        horizontal=True,
+        key=f"{key}_action_{round_index}",
+    )
+    shares = st.slider(
+        "Shares · how confident are you?",
+        min_value=1,
+        max_value=5,
+        value=2,
+        help="Choose fewer shares when unsure and more when confident.",
+        key=f"{key}_shares_{round_index}",
+    )
+    if st.button("Lock trade & reveal answer", key=f"{key}_lock_{round_index}"):
+        user_pnl = _trade_credits(action, bid, ask, answer, shares)
+        results.append(
+            {
+                "prompt": question["prompt"],
+                "difficulty": question["difficulty"],
+                "answer": answer,
+                "unit": question["unit"],
+                "estimate": estimate,
+                "action": action,
+                "shares": shares,
+                "user_pnl": user_pnl,
+                "opponent_pnl": -user_pnl,
+                "maker_on_target": maker_on_target,
+            }
+        )
+        st.session_state[f"{key}_revealed"] = True
+        st.rerun()
+
+
+def _render_maker_tab():
+    key = "maker"
+    questions = MAKER_QUESTIONS
+    round_index = st.session_state.setdefault(f"{key}_round", 0)
+    results = st.session_state.setdefault(f"{key}_results", [])
+    revealed = st.session_state.setdefault(f"{key}_revealed", False)
+    if round_index == len(questions):
+        _display_game_summary(key, results, "Market maker", "Sample trader")
+        return
+
+    question = questions[round_index]
+    _display_round(question, round_index, len(questions), revealed)
+    if revealed:
+        result = results[-1]
+        position, distance = _maker_quote_result(
+            result["bid"], result["ask"], result["answer"]
+        )
+        if position == "inside":
+            st.success(
+                f"Inside your spread. The answer was "
+                f"{_display_value(distance)} {question['unit']} from the nearest edge."
+            )
+        else:
+            side = "below your bid" if position == "below" else "above your ask"
+            st.warning(
+                f"Outside your spread. The answer was "
+                f"{_display_value(distance)} {question['unit']} {side}."
+            )
+        _display_round_pnl(
+            "market maker", "the sample trader",
+            result["user_pnl"], result["opponent_pnl"],
+        )
+        st.markdown(
+            f'**Sample trader:** {result["action"]}  ·  '
+            f'**Your quote:** {_display_value(result["bid"])} bid / '
+            f'{_display_value(result["ask"])} ask'
+        )
+        _display_answer(question)
+        if st.button("Next question", key=f"{key}_next_{round_index}"):
+            st.session_state[f"{key}_round"] += 1
+            st.session_state[f"{key}_revealed"] = False
+            st.rerun()
+        return
+
+    step = question["step"]
+    minimum = max(step, int(question["answer"] * 0.5 // step) * step)
+    maximum = int((question["answer"] * 1.5 + step - 1) // step) * step
+    estimate = st.slider(
+        "Your fair-value estimate",
+        min_value=minimum,
+        max_value=maximum,
+        value=question["estimate"],
+        step=step,
+        key=f"{key}_estimate_{round_index}",
+    )
+    spread_pct = st.slider(
+        "Your spread",
+        min_value=2,
+        max_value=30,
+        value=10,
+        step=1,
+        help="The total bid-to-ask gap as a percentage of your estimate.",
+        key=f"{key}_spread_{round_index}",
+    )
+    bid, ask = _quote_prices(estimate, estimate * spread_pct / 100)
+    bid_col, ask_col = st.columns(2)
+    bid_col.metric("YOUR BID", f'{_display_value(bid)} {question["unit"]}')
+    ask_col.metric("YOUR ASK", f'{_display_value(ask)} {question["unit"]}')
+    if st.button("Lock quote & reveal answer", key=f"{key}_lock_{round_index}"):
+        action = _session_scenarios("maker_scenarios")[round_index]
+        trader_pnl = _trade_credits(action, bid, ask, question["answer"], 1)
+        maker_pnl = round(-trader_pnl, 1)
+        results.append(
+            {
+                "prompt": question["prompt"],
+                "difficulty": question["difficulty"],
+                "answer": question["answer"],
+                "unit": question["unit"],
+                "bid": bid,
+                "ask": ask,
+                "action": action,
+                "user_pnl": maker_pnl,
+                "opponent_pnl": trader_pnl,
+            }
+        )
+        st.session_state[f"{key}_revealed"] = True
+        st.rerun()
 
 
 def render_quote_lab():
@@ -117,63 +462,30 @@ def render_quote_lab():
         st.markdown(
             """
 <div class="quote-lab-heading" id="quote-lab">
-    <p class="eyebrow">Interactive sandbox / example only</p>
-    <h2>Set your quote.</h2>
-    <p>Choose an estimated fair value and spread. See how your bid and ask compare
-    with a hypothetical team's spread—no live prices or competition data.</p>
+    <p class="eyebrow">Two games / six rounds each</p>
+    <h2>Trade the question.</h2>
+    <p>Estimate what you don't know. Set a price, take a side, and see how it settles.
+    Answers stay hidden until you lock in each round.</p>
 </div>
 """,
             unsafe_allow_html=True,
         )
-        estimate_col, spread_col, comparison_col = st.columns(3)
-        with estimate_col:
-            estimate = st.slider(
-                "Your estimated fair value",
-                min_value=50.0,
-                max_value=150.0,
-                value=100.0,
-                step=1.0,
-                key="quote_lab_estimate",
-                help="Your model's estimate of the underlying value.",
+        trader_tab, maker_tab = st.tabs(["Participant / Trader", "Market Maker"])
+        with trader_tab:
+            st.markdown(
+                "Trade against a sample market maker. Choose your side and how many "
+                "shares to trade; more shares mean more risk and reward."
             )
-        with spread_col:
-            spread = st.slider(
-                "Your spread",
-                min_value=0.0,
-                max_value=20.0,
-                value=4.0,
-                step=0.5,
-                key="quote_lab_spread",
-                help="Ask minus bid. A narrower spread is more competitive, but leaves less room for estimation error.",
+            _render_trader_tab()
+        with maker_tab:
+            st.markdown(
+                "Set your fair-value estimate and spread. A sample trader will take "
+                "one side of your quote."
             )
-        with comparison_col:
-            comparison_spread = st.slider(
-                "Example comparison spread",
-                min_value=0.0,
-                max_value=20.0,
-                value=5.0,
-                step=0.5,
-                key="quote_lab_comparison",
-                help="Set a hypothetical competing team's spread to compare against.",
-            )
-
-        bid, ask = _quote_prices(estimate, spread)
-        bid_col, estimate_result_col, ask_col = st.columns(3)
-        bid_col.metric("BID / BUY", f"{bid:.1f}")
-        estimate_result_col.metric("YOUR ESTIMATE", f"{estimate:.1f}")
-        ask_col.metric("ASK / SELL", f"{ask:.1f}")
-        if spread < comparison_spread:
-            status = "Your example spread is narrower than the comparison."
-        elif spread > comparison_spread:
-            status = "Your example spread is wider than the comparison."
-        else:
-            status = "Your example spread matches the comparison."
-        st.markdown(
-            f'<p class="quote-lab-result"><strong>Spread: {spread:.1f}</strong>'
-            f' <span>vs. {comparison_spread:.1f} comparison</span></p>'
-            f'<p class="quote-lab-status">{status} A narrower eligible spread may receive '
-            "market-maker allocation, subject to the event's competition rules.</p>",
-            unsafe_allow_html=True,
+            _render_maker_tab()
+        st.caption(
+            "P&L uses simulation credits (percentage price move × shares). "
+            "No real money or live market data."
         )
 
 
