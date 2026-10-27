@@ -3,12 +3,13 @@
 import streamlit as st
 import random
 from datetime import datetime, timezone
+from event_config import EVENT_CONFIG
 
 import gspread
 from google.oauth2.service_account import Credentials
 
 
-REGISTRATION_OPEN = False
+REGISTRATION_OPEN = EVENT_CONFIG["registration_open"]
 
 
 # ── Google Sheets persistence ─────────────────────────────────────────────────
@@ -20,13 +21,20 @@ _SCOPES = [
 
 @st.cache_resource(ttl=300)
 def _get_gsheet():
-    """Return the first worksheet of the configured Google Sheet."""
+    """Return the 2026 registration worksheet, never the legacy default tab."""
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"], scopes=_SCOPES
     )
     gc = gspread.authorize(creds)
-    sh = gc.open_by_key(st.secrets["sheets"]["spreadsheet_id"])
-    ws = sh.sheet1
+    spreadsheet_id = st.secrets["sheets"][
+        EVENT_CONFIG["registration_spreadsheet_secret"]
+    ]
+    sh = gc.open_by_key(spreadsheet_id)
+    title = EVENT_CONFIG["registration_worksheet"]
+    try:
+        ws = sh.worksheet(title)
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=title, rows=1000, cols=11)
     header = ws.row_values(1)
     if not header:
         ws.append_row(
@@ -59,17 +67,8 @@ def _save_registration(name, email, university, degree, team_name,
 @st.cache_data(ttl=120)
 def get_team_count():
     """Count total registrations (rows after the header)."""
-    try:
-        creds = Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"], scopes=_SCOPES
-        )
-        gc = gspread.authorize(creds)
-        sh = gc.open_by_key(st.secrets["sheets"]["spreadsheet_id"])
-        ws = sh.sheet1
-        all_rows = ws.get_all_values()
-        return max(len(all_rows) - 1, 0)  # subtract header row
-    except Exception:
-        return 0
+    all_rows = _get_gsheet().get_all_values()
+    return max(len(all_rows) - 1, 0)  # subtract header row
 
 
 # ── Team-formation helpers ────────────────────────────────────────────────────
@@ -327,10 +326,8 @@ def _get_all_named_teams():
     Included:
     - Pre-formed teams: team_size in (2,3,4) with a team_name. Size comes from
       the team_size column (the registrant entered it for the whole team).
-        - Solo teams: any solo registrant with a team_name should appear on the
-            Registered Teams board, even if they stay solo.
-        - Solo-formed groups: multiple solo registrants sharing the same team_name
-            (formed via the Team Hub). Size = number of rows.
+        - Forming teams: individuals sharing a team_name are shown once at least
+            two people have joined through the Team Hub.
     """
     _, rows = _get_all_rows()
     if len(rows) <= 1:
@@ -359,11 +356,10 @@ def _get_all_named_teams():
     # teammates registering individually — do NOT add them on top.
     for tn, info in preformed.items():
         result[tn] = info
-    # Pure solo teams/groups (no pre-formed entry): show as soon as a solo
-    # participant picks a name. If more solo participants join later, the size
-    # naturally increases with row count.
+    # Individuals forming a team are not displayed as a competition team until
+    # at least two people have joined.
     for tn, members in solo_groups.items():
-        if tn not in result:
+        if tn not in result and len(members) >= 2:
             result[tn] = {"members": members, "size": len(members)}
     return result
 
@@ -827,32 +823,22 @@ def render_registration():
 
     if not REGISTRATION_OPEN:
         st.markdown("""
-        <div style="text-align:center;margin-bottom:40px;">
-            <div class="section-tag">Update</div>
-            <div class="section-title">Registrations Are Closed</div>
-            <div class="section-subtitle" style="margin:0 auto;">
-                The registration window for this hackathon is now closed.<br>
-                You can still explore teams and the leaderboard below.
-            </div>
-        </div>
+        <section id="register" class="registration-panel">
+            <p class="eyebrow">Take part</p>
+            <h2>Registration details to be announced.</h2>
+            <p>Registration is not open yet. Check back for the 2026 sign-up details.</p>
+        </section>
         """, unsafe_allow_html=True)
-        st.info("Signups are closed. If you need support, contact the organizers on Discord.")
         return
 
     st.markdown("""
     <div style="text-align:center;margin-bottom:40px;">
-        <div class="section-tag">Join Now</div>
-        <div class="section-title">Register Interest</div>
+        <div class="section-tag">Take part</div>
+        <div class="section-title">Register your team</div>
         <div class="section-subtitle" style="margin:0 auto;">
-            Sign up to receive updates and secure your team's spot.<br>
+            One person should register on behalf of a team of 2–4 participants.<br>
             <span style="font-size:0.9rem;color:var(--text-muted);">
-                <strong style="color:var(--accent);">Teams of 2&ndash;4: only one person needs to submit this form</strong>
-                on behalf of the whole team &mdash; enter your team name and the number of people
-                (including yourself).<br>
-                <strong>Competing solo?</strong> Choose <em>"1 (solo team)"</em> and set your team name now &mdash;
-                it will appear on the Registered Teams board immediately.<br>
-                <strong>Looking for teammates?</strong> Choose <em>"1 (looking for a team)"</em> &mdash;
-                team name is optional at registration and can be set later in the <strong>Team Hub</strong>.
+                Participation is open to university students across universities.
             </span>
         </div>
     </div>
@@ -872,21 +858,23 @@ def render_registration():
             reg_degree = st.text_input("Degree / Background")
             reg_team_size = st.selectbox(
                 "Team Size",
-                ["1 (looking for a team)", "1 (solo team)", "2", "3", "4"],
+                [_SOLO_LABEL, "2", "3", "4"],
                 help=(
-                    "Solo team: you are competing alone under your own team name (required). "
-                    "Looking for a team: you want to be matched with others (team name optional now, set it in the Team Hub later). "
-                    "2–4: register your whole pre-formed team — only one person needs to submit."
+                    "Choose this option if you are registering as an individual "
+                    "to find teammates; it is not a solo competition entry. "
+                    "For a pre-formed team, enter its total size."
                 ),
             )
 
-        # Team name: mandatory for teams of 2+ and solo teams; optional for "looking for a team"
-        _team_name_required = reg_team_size in ("1 (solo team)", "2", "3", "4")
+        _is_looking_for_team = reg_team_size == _SOLO_LABEL
         reg_team = st.text_input(
-            "Team Name" + (" *" if _team_name_required else " (optional — set later in Team Hub)"),
+            "Team Name (optional while looking for teammates)"
+            if _is_looking_for_team
+            else "Team Name *",
             help=(
-                "Required if you are a solo team or a pre-formed team of 2–4. "
-                "If you are looking for a team you can leave this blank and set it later."
+                "You can choose a team name later in the Team Hub."
+                if _is_looking_for_team
+                else "Choose the name your team will use in the competition."
             ),
         )
         reg_interest = st.text_area("Why are you interested?", height=108)
@@ -894,25 +882,22 @@ def render_registration():
         submitted = st.form_submit_button("Register Interest", use_container_width=True)
 
         if submitted:
-            is_preformed_team = reg_team_size in ("2", "3", "4")
-            is_solo_team = reg_team_size == "1 (solo team)"
             reg_team_clean = reg_team.strip()
             if not reg_name or not reg_email:
                 st.warning("Please fill in at least your name and email.")
-            elif is_preformed_team and not reg_team_clean:
-                st.warning("Team name is required when registering as a pre-formed team of 2 or more.")
-            elif is_solo_team and not reg_team_clean:
-                st.warning("Team name is required for a solo team — it's how you'll appear on the leaderboard.")
-            elif reg_team_clean and _team_name_taken_by_other_group(reg_team_clean):
-                st.error("That team name is already taken. Please choose a unique team name.")
+            elif not reg_team_clean and not _is_looking_for_team:
+                st.warning("Please enter a team name.")
             else:
                 try:
-                    _save_registration(
-                        reg_name, reg_email, reg_uni, reg_degree,
-                        reg_team_clean, reg_team_size, reg_experience, reg_interest,
-                    )
-                    st.success("**You're in!** We'll send you updates soon.")
-                    st.balloons()
+                    if _team_name_taken_by_other_group(reg_team_clean):
+                        st.error("That team name is already taken. Please choose a unique team name.")
+                    else:
+                        _save_registration(
+                            reg_name, reg_email, reg_uni, reg_degree,
+                            reg_team_clean, reg_team_size, reg_experience, reg_interest,
+                        )
+                        st.success("**You're in!** We'll send you updates soon.")
+                        st.balloons()
                 except Exception as exc:
                     st.error(f"Registration failed: {exc}")
 
@@ -925,7 +910,7 @@ def render_team_formation():
         <div class="section-tag">Team Hub</div>
         <div class="section-title">Find Your Team</div>
         <div class="section-subtitle" style="margin:0 auto;">
-            Already registered? Set your team name, keep your solo team as-is,
+            Already registered? Set your team name, find teammates,
             optionally open it to recruit more people, browse open teams and join one,
             or leave/delete your current team.
             Use the email you registered with.
@@ -1256,8 +1241,8 @@ def render_faq():
          "If you already have a team (2&ndash;4 people), <strong>only one person per team needs to register</strong> &mdash; enter your team name and the total team size. Everyone else on your team will be counted automatically. Solo participants register individually and can find or form a team later via the Team Hub."),
         ("Do I need finance experience?",
          "Not at all. We provide all resources, starter code, and datasets. If you can write Python, you're good."),
-        ("Can I participate solo?",
-         "Yes! Solo participants welcome &mdash; we'll help you find a team. Teams of 2&ndash;4 recommended."),
+        ("Can I sign up before I have a team?",
+         "Yes. Register as looking for a team, then use the Team Hub to find teammates. Competition teams are intended to have 2–4 participants."),
         ("What tools can I use?",
          "Python is primary. Any ML library (scikit-learn, PyTorch, TensorFlow, etc.) is fine. We provide the trading API."),
         ("Will there be starter code?",
