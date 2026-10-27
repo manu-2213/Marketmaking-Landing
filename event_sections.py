@@ -5,6 +5,7 @@ from html import escape
 import streamlit as st
 
 from event_config import EVENT_CONFIG
+from components import get_team_count
 
 
 def _section_heading(label: str, title: str, description: str = "") -> str:
@@ -68,12 +69,13 @@ def render_hero():
 
 
 def render_stats():
+    registration_count = get_team_count()
     st.markdown(
         f"""
         <section class="date-strip" aria-label="Event details">
-            <div><span class="eyebrow">Who</span><strong>{escape(EVENT_CONFIG["eligibility"])}</strong></div>
+            <div><span class="eyebrow">Registrations</span><strong>{registration_count} registered</strong></div>
             <div><span class="eyebrow">Teams</span><strong>{escape(EVENT_CONFIG["team_size"])}</strong></div>
-            <div><span class="eyebrow">Where</span><strong>{escape(EVENT_CONFIG["venue"])}</strong></div>
+            <div><span class="eyebrow">Open to</span><strong>{escape(EVENT_CONFIG["eligibility"])}</strong></div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -243,7 +245,7 @@ def render_partners():
     st.markdown(
         _section_heading(
             "QMML Society Partners",
-            "Supported by our wider community.",
+            "Our society partner network.",
         )
         + f"""
         <section id="partners" class="partners-list" aria-label="QMML Society Partners">
@@ -257,8 +259,8 @@ def render_partners():
 
 def render_cta():
     call_to_action = (
-        f'<a class="button button-blue" href="{escape(EVENT_CONFIG["registration_url"])}">Register interest</a>'
-        if EVENT_CONFIG["registration_open"] and EVENT_CONFIG["registration_url"]
+        '<a class="button button-blue" href="#register">Register for the hackathon</a>'
+        if EVENT_CONFIG["registration_open"]
         else '<span class="registration-status">Registration details to be announced</span>'
     )
     st.markdown(

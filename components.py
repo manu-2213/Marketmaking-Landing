@@ -1,73 +1,42 @@
 """Section components for the Market-Making AI Hackathon landing page."""
 
+from html import escape
 import streamlit as st
 import random
+import re
 from datetime import datetime, timezone
+from pathlib import Path
 from event_config import EVENT_CONFIG
 
-import gspread
-from google.oauth2.service_account import Credentials
+from registration_store import CSVRegistrationStore
 
 
 REGISTRATION_OPEN = EVENT_CONFIG["registration_open"]
 
-
-# ── Google Sheets persistence ─────────────────────────────────────────────────
-
-_SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
-
-@st.cache_resource(ttl=300)
-def _get_gsheet():
-    """Return the 2026 registration worksheet, never the legacy default tab."""
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"], scopes=_SCOPES
-    )
-    gc = gspread.authorize(creds)
-    spreadsheet_id = st.secrets["sheets"][
-        EVENT_CONFIG["registration_spreadsheet_secret"]
-    ]
-    sh = gc.open_by_key(spreadsheet_id)
-    title = EVENT_CONFIG["registration_worksheet"]
-    try:
-        ws = sh.worksheet(title)
-    except gspread.WorksheetNotFound:
-        ws = sh.add_worksheet(title=title, rows=1000, cols=11)
-    header = ws.row_values(1)
-    if not header:
-        ws.append_row(
-            ["timestamp", "name", "email", "university", "degree",
-             "team_name", "team_size", "experience", "interest",
-             "open_for_joining", "open_spots"]
-        )
-    else:
-        if "open_for_joining" not in header:
-            ws.update_cell(1, len(header) + 1, "open_for_joining")
-            header.append("open_for_joining")
-        if "open_spots" not in header:
-            ws.update_cell(1, len(header) + 1, "open_spots")
-    return ws
+_REGISTRATION_CSV = Path(__file__).parent / EVENT_CONFIG["registration_csv"]
 
 
-def _save_registration(name, email, university, degree, team_name,
+def _get_registration_store():
+    return CSVRegistrationStore(_REGISTRATION_CSV)
+
+
+def _save_registration(name, student_id, email, university, degree, team_name,
                         team_size, experience, interest):
-    """Append a registration row to Google Sheets."""
-    ws = _get_gsheet()
+    """Append a registration row to the event CSV."""
+    ws = _get_registration_store()
     ws.append_row([
         datetime.now(timezone.utc).isoformat(),
         name, email, university, degree,
         team_name, team_size, experience, interest,
         "",  # open_for_joining — empty by default
         "",  # open_spots — empty by default
+        student_id,
     ])
 
 
-@st.cache_data(ttl=120)
 def get_team_count():
     """Count total registrations (rows after the header)."""
-    all_rows = _get_gsheet().get_all_values()
+    all_rows = _get_registration_store().get_all_values()
     return max(len(all_rows) - 1, 0)  # subtract header row
 
 
@@ -80,8 +49,8 @@ _SOLO_LABEL = "1 (looking for a team)"
 
 
 def _get_all_rows():
-    """Return (worksheet, all_values) from the main sheet."""
-    ws = _get_gsheet()
+    """Return (CSV store, all_values) for 2026 registrations."""
+    ws = _get_registration_store()
     return ws, ws.get_all_values()
 
 
@@ -103,6 +72,22 @@ def _verify_email(email: str):
     for idx, r in enumerate(rows[1:], start=2):
         if len(r) > 2 and r[2].strip().lower() == email.strip().lower():
             return idx, _row_to_dict(header, r)
+    return None
+
+
+def _verify_student_id(student_id: str):
+    """Find a registrant by student ID, case-insensitively."""
+    _, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return None
+    header = rows[0]
+    student_id_index = header.index("student_id")
+    for idx, row in enumerate(rows[1:], start=2):
+        if (
+            len(row) > student_id_index
+            and row[student_id_index].strip().casefold() == student_id.strip().casefold()
+        ):
+            return idx, _row_to_dict(header, row)
     return None
 
 
@@ -589,33 +574,27 @@ def render_timeline():
     <div class="timeline-stepper">
         <div class="step">
             <div class="step-icon step-icon-1">⚡</div>
-            <div class="step-date step-date-1">MAR 25</div>
-            <div class="step-title">Kickoff</div>
-            <div class="step-sub">Opening ceremony at QMUL</div>
+            <div class="step-date step-date-1">19 NOV 2026</div>
+            <div class="step-title">Opening ceremony</div>
+            <div class="step-sub">In person</div>
         </div>
         <div class="step">
             <div class="step-icon step-icon-2">🧠</div>
-            <div class="step-date step-date-2">MAR 26 – 31</div>
-            <div class="step-title">Build Week</div>
-            <div class="step-sub">Design &amp; train your agent</div>
+            <div class="step-date step-date-2">BUILD &amp; PREPARE</div>
+            <div class="step-title">Develop your model</div>
+            <div class="step-sub">Work with your team</div>
         </div>
         <div class="step">
             <div class="step-icon step-icon-3">📈</div>
-            <div class="step-date step-date-3">APR 1</div>
-            <div class="step-title">Live Finals</div>
-            <div class="step-sub">Agents trade head-to-head</div>
+            <div class="step-date step-date-3">26 NOV 2026</div>
+            <div class="step-title">Live competition</div>
+            <div class="step-sub">Simulated market</div>
         </div>
         <div class="step">
-            <div class="step-icon step-icon-4">🎤</div>
-            <div class="step-date step-date-4">APR 1</div>
-            <div class="step-title">Quant Talk</div>
-            <div class="step-sub">Quant / ML Researcher talk</div>
-        </div>
-        <div class="step">
-            <div class="step-icon step-icon-5">🏆</div>
-            <div class="step-date step-date-5">APR 1</div>
-            <div class="step-title">Awards</div>
-            <div class="step-sub">Winners announced live</div>
+            <div class="step-icon step-icon-4">🏆</div>
+            <div class="step-date step-date-4">26 NOV 2026</div>
+            <div class="step-title">Closing ceremony</div>
+            <div class="step-sub">In person</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -836,7 +815,7 @@ def render_registration():
         <div class="section-tag">Take part</div>
         <div class="section-title">Register your team</div>
         <div class="section-subtitle" style="margin:0 auto;">
-            One person should register on behalf of a team of 2–4 participants.<br>
+            Register as a team of 2–4 or sign up as an individual looking for teammates.<br>
             <span style="font-size:0.9rem;color:var(--text-muted);">
                 Participation is open to university students across universities.
             </span>
@@ -848,52 +827,72 @@ def render_registration():
         fc1, fc2 = st.columns(2, gap="medium")
         with fc1:
             reg_name = st.text_input("Full Name *")
-            reg_uni = st.text_input("University *")
-            reg_experience = st.selectbox(
-                "ML Experience Level",
-                ["Beginner", "Intermediate", "Advanced", "Expert"],
-            )
+            reg_student_id = st.text_input("Student ID *")
+            reg_student_email = st.text_input("Student Email *")
         with fc2:
-            reg_email = st.text_input("Email *")
+            reg_uni = st.text_input("University *")
             reg_degree = st.text_input("Degree / Background")
-            reg_team_size = st.selectbox(
+            team_size_choice = st.selectbox(
                 "Team Size",
-                [_SOLO_LABEL, "2", "3", "4"],
+                ["Looking for a team", "2", "3", "4"],
                 help=(
                     "Choose this option if you are registering as an individual "
-                    "to find teammates; it is not a solo competition entry. "
-                    "For a pre-formed team, enter its total size."
+                    "to find teammates. For an existing team, select the total "
+                    "number of team members."
                 ),
             )
 
-        _is_looking_for_team = reg_team_size == _SOLO_LABEL
+        _is_looking_for_team = team_size_choice == "Looking for a team"
+        reg_team_size = _SOLO_LABEL if _is_looking_for_team else team_size_choice
         reg_team = st.text_input(
-            "Team Name (optional while looking for teammates)"
-            if _is_looking_for_team
-            else "Team Name *",
+            "Team Name (optional when looking for teammates)",
             help=(
-                "You can choose a team name later in the Team Hub."
-                if _is_looking_for_team
-                else "Choose the name your team will use in the competition."
+                "Choose the name your team will use. Leave this blank if you are "
+                "registering as an individual looking for teammates."
             ),
         )
-        reg_interest = st.text_area("Why are you interested?", height=108)
+        reg_experience = st.selectbox(
+            "ML Experience Level",
+            ["Beginner", "Intermediate", "Advanced", "Expert"],
+        )
+        reg_interest = st.text_area(
+            "Anything else you would like us to know?", height=90
+        )
+        st.caption(
+            "Your student email and ID are used for registration and team "
+            "coordination, and are not displayed on the public team list."
+        )
 
-        submitted = st.form_submit_button("Register Interest", use_container_width=True)
+        submitted = st.form_submit_button(
+            "Register for the hackathon", use_container_width=True
+        )
 
         if submitted:
             reg_team_clean = reg_team.strip()
-            if not reg_name or not reg_email:
-                st.warning("Please fill in at least your name and email.")
+            reg_email_clean = reg_student_email.strip()
+            reg_student_id_clean = reg_student_id.strip()
+            if not all(
+                (reg_name.strip(), reg_student_id_clean, reg_email_clean, reg_uni.strip())
+            ):
+                st.warning(
+                    "Please fill in your name, student ID, student email and university."
+                )
+            elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", reg_email_clean):
+                st.warning("Enter a valid student email address.")
             elif not reg_team_clean and not _is_looking_for_team:
                 st.warning("Please enter a team name.")
             else:
                 try:
-                    if _team_name_taken_by_other_group(reg_team_clean):
+                    if _verify_email(reg_email_clean):
+                        st.error("That student email is already registered.")
+                    elif _verify_student_id(reg_student_id_clean):
+                        st.error("That student ID is already registered.")
+                    elif reg_team_clean and _team_name_taken_by_other_group(reg_team_clean):
                         st.error("That team name is already taken. Please choose a unique team name.")
                     else:
                         _save_registration(
-                            reg_name, reg_email, reg_uni, reg_degree,
+                            reg_name.strip(), reg_student_id_clean, reg_email_clean,
+                            reg_uni.strip(), reg_degree.strip(),
                             reg_team_clean, reg_team_size, reg_experience, reg_interest,
                         )
                         st.success("**You're in!** We'll send you updates soon.")
@@ -934,7 +933,7 @@ def render_team_formation():
             spots = info["open_spots"]
             team_html += (
                 f'<div class="tf-team-card">'
-                f'<div class="tf-team-name">{name}</div>'
+                f'<div class="tf-team-name">{escape(name)}</div>'
                 f'<div class="tf-team-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
                 f'<div class="tf-team-spots">{spots} spot{"s" if spots != 1 else ""} open</div>'
                 f'</div>'
@@ -1219,7 +1218,7 @@ def render_registered_teams():
         html += (
             f'<div class="rt-card" style="border-color:{border};">'
             f'<div class="rt-accent-bar" style="background:linear-gradient(90deg,{accent},{border});"></div>'
-            f'<div class="rt-name" style="color:{accent};">{name}</div>'
+            f'<div class="rt-name" style="color:{accent};">{escape(name)}</div>'
             f'<div class="rt-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
             f'</div>'
         )
