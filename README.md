@@ -1,33 +1,77 @@
 # QMML AI Market-Making Hackathon 2026
 
-This repository contains the Streamlit event site, registration form, and team-formation hub. The live market simulator, trading engine, datasets, and scoring service are not part of this repository.
+Streamlit event site, registration and Team Hub. The competition engine and its
+trading/submission storage live outside this repository.
 
-## Run locally
+## Run
 
 ```sh
 python -m pip install -r requirements.txt
 streamlit run landing.py
 ```
 
-Event dates, team sizes, registration status, CSV location, round count, and prize text are centralized in `event_config.py`.
+Event information and registration status are in [event_config.py](event_config.py).
+The public page renders without credentials; submitting registrations and using
+the Team Hub require the Google Sheets configuration below.
 
-## Registration and CSV storage
+## Registrations: back in the original Google account
 
-Registration is open. The form collects name, student ID, student email, university, degree/background, team name (optional when looking for a team), team size/looking-for-team status, ML experience, and an optional note. Student ID and student email must be unique. The Team Hub can update registrations and find/join teams using the same CSV.
+The website writes to **the first worksheet of the original Google spreadsheet**,
+using the original `sheets.spreadsheet_id` and `gcp_service_account` settings.
+Configure these in local `.streamlit/secrets.toml` or the deployment's Streamlit
+secrets. See [.streamlit/secrets.toml.example](.streamlit/secrets.toml.example).
+Share the spreadsheet with the service-account email as an editor.
 
-On the first registration, the app creates `registrations.csv` beside `landing.py`, unless `QMML_REGISTRATIONS_CSV` points to a different location. The CSV contains private participant details and is excluded from Git by `.gitignore`. If an existing `registrations.csv` is present, rows are preserved; the app adds the `student_id` column when needed. It never writes to the old Google Sheet.
+**This is Google Sheets, not a local CSV.** In your Google account, open the sheet
+and use **File → Download → Comma-separated values (.csv)** to get the registrations.
+This exports the worksheet, including historical records. For a current-event-only
+export, copy rows with `event_id = qmml-2026-november` into a separate tab and download
+that tab; do not assume hiding/filtering rows excludes them from CSV exports.
+Do not publish the spreadsheet or a participant export.
 
-**Deployment note:** local CSV storage is suitable only when the Streamlit host provides persistent writable storage. Many hosted app filesystems are ephemeral or have multiple replicas. For production use, set `QMML_REGISTRATIONS_CSV` to a durable private volume path and back it up securely, or replace this adapter with a managed database before enabling registration. The app does not upload registration records to a remote service.
+- New records include name, student email (`email`), student ID (`student_id`),
+  university, degree, team name/size, ML experience and an optional note.
+- `looking_for_team` is explicitly stored; the Team Hub also uses the existing
+  `team_size`, `open_for_joining` and `open_spots` fields.
+- The first successful registration adds any missing columns to the header,
+  including `student_id`, `event_id` and `looking_for_team`. Existing rows, columns
+  and their order are preserved. User values are stored as RAW values, not formulas.
+- Historical entries without this event ID remain in your account but are not
+  shown on the current Team Hub or used for current-event duplicate checks.
+- Nothing is deleted or reset. Do not tag earlier participants as current entries
+  unless you deliberately want to enrol them in the November event.
+- No local CSV fallback is used if Google Sheets fails. The form shows an error,
+  retains entered values and displays success only after the remote append returns.
+- The previous local CSV utility is retained for existing files/tests, but the
+  website no longer uses it. No local CSVs are automatically uploaded or deleted.
 
-The CSV is private operational data. Do not commit it, publish it, or add it to logs. Back it up to access-controlled storage and retain participant data only as long as needed.
+The Team Hub retains its original email-based identification flow; it does not
+verify email ownership. Plan stronger authentication before relying on it for
+sensitive team administration. Spreadsheet writes are not transactional across
+multiple app replicas; run a single app instance for this workflow.
 
-## Event and production status
+## Verification
 
-- The local site is configured with the 19 and 26 November 2026 in-person dates; venue details and prizes remain unannounced.
-- This checkout did not contain `registrations.csv` when inspected. No existing CSV records were deleted or overwritten.
-- Production deployment and production-data reset have not been performed. The configured Git remote does not match the repository URL in the original relaunch brief.
-- The `out/` invitation drafts and email scripts are separate from the website registration store and may contain previous-event campaign details. They were not changed.
+```sh
+python -m unittest discover -s tests -v
+```
 
-## Design and assets
+Tests use temporary files and mocked Google Sheets; they never send test
+registrations to the real account. Coverage includes legacy-row preservation,
+current-event filtering, header mapping, raw writes, form submission, required team
+name, duplicate email handling and failed-write feedback.
 
-The responsive site uses the navy, cream, and cobalt visual system in `styles.css`. Official BCG, CIRQL, and ENCODE logo assets were not present in the workspace; partner names are shown without implying event sponsorship or prize funding.
+The original account's sheet was reached with read-only credentials during this
+update. No production participant data was written, erased or printed. Deployment
+has not been performed; publishing these files to the configured Streamlit app is
+still required. The invitation files and separate email scripts remain unchanged.
+
+## Design
+
+The site uses a dark navy palette, warm off-white type, cobalt actions, more
+readable typography, a compact event schedule and a grouped registration form.
+The interactive quote sandbox lets visitors explore bid/ask values and compare
+their spread with a hypothetical example; it is not connected to live market or
+competition data. Team-management forms are available on demand rather than
+filling the landing page. Responsive styles are in [styles.css](styles.css),
+with native controls themed in [.streamlit/config.toml](.streamlit/config.toml).

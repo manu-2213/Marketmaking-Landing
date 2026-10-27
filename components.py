@@ -5,24 +5,20 @@ import streamlit as st
 import random
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 from event_config import EVENT_CONFIG
 
-from registration_store import CSVRegistrationStore
+from sheets_store import get_registration_store, STORAGE_ERRORS
 
 
 REGISTRATION_OPEN = EVENT_CONFIG["registration_open"]
 
-_REGISTRATION_CSV = Path(__file__).parent / EVENT_CONFIG["registration_csv"]
-
-
 def _get_registration_store():
-    return CSVRegistrationStore(_REGISTRATION_CSV)
+    return get_registration_store()
 
 
 def _save_registration(name, student_id, email, university, degree, team_name,
                         team_size, experience, interest):
-    """Append a registration row to the event CSV."""
+    """Save a registration to the organiser's Google Sheet."""
     ws = _get_registration_store()
     ws.append_row([
         datetime.now(timezone.utc).isoformat(),
@@ -49,7 +45,7 @@ _SOLO_LABEL = "1 (looking for a team)"
 
 
 def _get_all_rows():
-    """Return (CSV store, all_values) for 2026 registrations."""
+    """Return the account-backed store and current-event registrations."""
     ws = _get_registration_store()
     return ws, ws.get_all_values()
 
@@ -797,79 +793,80 @@ def render_hype():
 
 
 def render_registration():
-    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div id="register"></div>', unsafe_allow_html=True)
 
     if not REGISTRATION_OPEN:
-        st.markdown("""
-        <section id="register" class="registration-panel">
-            <p class="eyebrow">Take part</p>
-            <h2>Registration details to be announced.</h2>
-            <p>Registration is not open yet. Check back for the 2026 sign-up details.</p>
-        </section>
-        """, unsafe_allow_html=True)
+        st.info("Registration is not open yet. Check back for sign-up details.")
         return
 
-    st.markdown("""
-    <div style="text-align:center;margin-bottom:40px;">
-        <div class="section-tag">Take part</div>
-        <div class="section-title">Register your team</div>
-        <div class="section-subtitle" style="margin:0 auto;">
-            Register as a team of 2–4 or sign up as an individual looking for teammates.<br>
-            <span style="font-size:0.9rem;color:var(--text-muted);">
-                Participation is open to university students across universities.
-            </span>
-        </div>
+    info, form_column = st.columns([0.85, 1.4], gap="large")
+    with info:
+        st.markdown("""
+<div class="registration-intro">
+    <p class="eyebrow"><span class="status-dot"></span> 04 / Registration open</p>
+    <h2>Your next<br>challenge<br>starts here.</h2>
+    <p>Secure your place in the AI Market-Making Hackathon.</p>
+    <div class="registration-facts">
+        <div><span>01</span><p><strong>All universities welcome</strong><br>Register with your student details.</p></div>
+        <div><span>02</span><p><strong>Your team, or your next team</strong><br>Come with 2–4 people, or find teammates.</p></div>
+        <div><span>03</span><p><strong>Two dates. In person.</strong><br>19 &amp; 26 November 2026.</p></div>
     </div>
-    """, unsafe_allow_html=True)
+    <p class="privacy-note">Student IDs and email addresses are kept private.
+    Only team names and team sizes appear on the public board.</p>
+</div>
+""", unsafe_allow_html=True)
+    with form_column:
+        if st.session_state.get("registration_saved_2026"):
+            st.success("Registration saved. You're on the list.")
+            st.write("Your details have been saved to the organiser's Google Sheet.")
+            st.caption("Looking for teammates? Open the Team Hub below.")
+            if st.button("Register another participant", key="register_another"):
+                st.session_state.pop("registration_saved_2026", None)
+                for key in list(st.session_state):
+                    if key.startswith("signup_"):
+                        del st.session_state[key]
+                st.rerun()
+            return
 
-    with st.form("registration_form", clear_on_submit=True):
-        fc1, fc2 = st.columns(2, gap="medium")
-        with fc1:
-            reg_name = st.text_input("Full Name *")
-            reg_student_id = st.text_input("Student ID *")
-            reg_student_email = st.text_input("Student Email *")
-        with fc2:
-            reg_uni = st.text_input("University *")
-            reg_degree = st.text_input("Degree / Background")
-            team_size_choice = st.selectbox(
-                "Team Size",
-                ["Looking for a team", "2", "3", "4"],
-                help=(
-                    "Choose this option if you are registering as an individual "
-                    "to find teammates. For an existing team, select the total "
-                    "number of team members."
-                ),
+        with st.form("registration_form", clear_on_submit=False):
+            st.markdown('<div class="form-title"><h3>Join the competition</h3>'
+                        '<p>Required fields are marked with an asterisk.</p></div>',
+                        unsafe_allow_html=True)
+            st.markdown('<p class="form-section-label">01 / Your details</p>', unsafe_allow_html=True)
+            a, b = st.columns(2)
+            with a:
+                reg_name = st.text_input("Full name *", placeholder="First and last name", key="signup_name")
+                reg_student_email = st.text_input("Student email *", placeholder="you@university.ac.uk", key="signup_email")
+                reg_uni = st.text_input("University *", placeholder="Your university", key="signup_university")
+            with b:
+                reg_student_id = st.text_input("Student ID *", placeholder="Your student number", key="signup_id")
+                reg_degree = st.text_input("Degree / subject", placeholder="e.g. Computer Science", key="signup_degree")
+                reg_experience = st.selectbox(
+                    "ML experience", ["Beginner", "Intermediate", "Advanced", "Expert"], key="signup_experience"
+                )
+            st.markdown('<p class="form-section-label">02 / Your team</p>', unsafe_allow_html=True)
+            a, b = st.columns(2)
+            with a:
+                team_size_choice = st.selectbox(
+                    "How are you joining? *",
+                    ["Looking for a team", "Team of 2", "Team of 3", "Team of 4"],
+                    key="signup_team_size",
+                )
+            with b:
+                reg_team = st.text_input("Team name", placeholder="Leave blank if looking", key="signup_team")
+            st.caption("For an existing team, one person registers on behalf of the group. Team name is required.")
+            with st.expander("Anything else? (optional)"):
+                reg_interest = st.text_area("A note for the organisers", key="signup_note", height=80)
+            submitted = st.form_submit_button(
+                "Register for the hackathon  ↗", use_container_width=True, type="primary"
             )
-
-        _is_looking_for_team = team_size_choice == "Looking for a team"
-        reg_team_size = _SOLO_LABEL if _is_looking_for_team else team_size_choice
-        reg_team = st.text_input(
-            "Team Name (optional when looking for teammates)",
-            help=(
-                "Choose the name your team will use. Leave this blank if you are "
-                "registering as an individual looking for teammates."
-            ),
-        )
-        reg_experience = st.selectbox(
-            "ML Experience Level",
-            ["Beginner", "Intermediate", "Advanced", "Expert"],
-        )
-        reg_interest = st.text_area(
-            "Anything else you would like us to know?", height=90
-        )
-        st.caption(
-            "Your student email and ID are used for registration and team "
-            "coordination, and are not displayed on the public team list."
-        )
-
-        submitted = st.form_submit_button(
-            "Register for the hackathon", use_container_width=True
-        )
+            st.caption("Your details are used to organise this event and coordinate teams.")
 
         if submitted:
+            _is_looking_for_team = team_size_choice == "Looking for a team"
+            reg_team_size = _SOLO_LABEL if _is_looking_for_team else team_size_choice[-1]
             reg_team_clean = reg_team.strip()
-            reg_email_clean = reg_student_email.strip()
+            reg_email_clean = reg_student_email.strip().lower()
             reg_student_id_clean = reg_student_id.strip()
             if not all(
                 (reg_name.strip(), reg_student_id_clean, reg_email_clean, reg_uni.strip())
@@ -895,10 +892,14 @@ def render_registration():
                             reg_uni.strip(), reg_degree.strip(),
                             reg_team_clean, reg_team_size, reg_experience, reg_interest,
                         )
-                        st.success("**You're in!** We'll send you updates soon.")
-                        st.balloons()
-                except Exception as exc:
-                    st.error(f"Registration failed: {exc}")
+                        st.session_state["registration_saved_2026"] = True
+                        st.rerun()
+                except STORAGE_ERRORS:
+                    st.error(
+                        "We couldn't confirm your registration with Google Sheets. "
+                        "Your form details are still here. Please try again; if the "
+                        "problem continues, contact the organisers."
+                    )
 
 
 def render_team_formation():
