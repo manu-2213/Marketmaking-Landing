@@ -223,17 +223,18 @@ def _display_value(value):
     return f"{value:,.2f}" if not float(value).is_integer() else f"{value:,.0f}"
 
 
-def _display_round(question, round_index, total, revealed):
+def _display_round(question, round_index, total, revealed, show_question=True):
     st.progress(
         (round_index + int(revealed)) / total,
         text=f"Round {round_index + 1} of {total}  ·  {question['difficulty']}",
     )
-    st.markdown(
-        f'<div class="game-question"><span>{question["difficulty"].upper()} '
-        f'QUESTION {round_index + 1:02d} / {total:02d}</span>'
-        f'<p>{escape(question["prompt"])}</p></div>',
-        unsafe_allow_html=True,
-    )
+    if show_question:
+        st.markdown(
+            f'<div class="game-question"><span>{question["difficulty"].upper()} '
+            f'QUESTION {round_index + 1:02d} / {total:02d}</span>'
+            f'<p>{escape(question["prompt"])}</p></div>',
+            unsafe_allow_html=True,
+        )
 
 
 def _display_answer(question):
@@ -261,12 +262,27 @@ def _display_round_pnl(role, opponent, user_pnl, opponent_pnl):
         st.info("No P&L this round.")
 
 
-def _display_game_summary(key, results, role, opponent):
+def _display_running_pnl(results, role, opponent):
     user_total = round(sum(result["user_pnl"] for result in results), 1)
     opponent_total = round(sum(result["opponent_pnl"] for result in results), 1)
     user_col, opponent_col = st.columns(2)
     user_col.metric(f"YOUR P&L · {role.upper()}", f"{user_total:+.1f} credits")
     opponent_col.metric(f"{opponent.upper()} P&L", f"{opponent_total:+.1f} credits")
+
+
+def _start_game(role):
+    for key in list(st.session_state.keys()):
+        if key.startswith(f"{role}_"):
+            del st.session_state[key]
+    st.session_state["quote_lab_role"] = role
+    st.session_state[f"{role}_round"] = 0
+    st.session_state[f"{role}_results"] = []
+    st.session_state[f"{role}_revealed"] = False
+    st.rerun()
+
+
+def _display_game_summary(key, results, role, opponent, other_role):
+    _display_running_pnl(results, role, opponent)
     for index, result in enumerate(results):
         with st.expander(
             f'Round {index + 1} · {result["difficulty"]} · {result["prompt"]}'
@@ -277,38 +293,37 @@ def _display_game_summary(key, results, role, opponent):
                 f'**{opponent} P&L:** {result["opponent_pnl"]:+.1f} credits'
             )
     st.caption("P&L is measured in simulation credits. No real money is involved.")
-    if st.button("Play again", key=f"{key}_restart"):
-        st.session_state[f"{key}_round"] = 0
-        st.session_state[f"{key}_results"] = []
-        st.session_state[f"{key}_revealed"] = False
-        st.session_state.pop(f"{key}_scenarios", None)
-        st.rerun()
+    replay_col, other_role_col = st.columns(2)
+    if replay_col.button(f"Play again as {role}", key=f"{key}_restart"):
+        _start_game(key)
+    if other_role_col.button(f"Play as {other_role}", key=f"{key}_other_role"):
+        _start_game("maker" if key == "trader" else "trader")
 
 
-def _render_trader_tab():
+def _render_trader_game():
     key = "trader"
     questions = TRADER_QUESTIONS
     round_index = st.session_state.setdefault(f"{key}_round", 0)
     results = st.session_state.setdefault(f"{key}_results", [])
     revealed = st.session_state.setdefault(f"{key}_revealed", False)
     if round_index == len(questions):
-        _display_game_summary(key, results, "Trader", "Sample market maker")
+        _display_game_summary(
+            key, results, "Trader", "Sample market maker", "Market Maker"
+        )
         return
 
     question = questions[round_index]
-    _display_round(question, round_index, len(questions), revealed)
+    _display_running_pnl(results, "Trader", "Sample market maker")
+    _display_round(
+        question, round_index, len(questions), revealed, show_question=revealed
+    )
     if revealed:
         result = results[-1]
         _display_round_pnl(
             "trader", "the sample market maker",
             result["user_pnl"], result["opponent_pnl"],
         )
-        if result["maker_on_target"]:
-            st.info("The sample market maker was on the money. Either side gave the same result.")
-        else:
-            st.info("The sample market maker was off the money. Your choice of side decided the result.")
         st.markdown(
-            f'**Your estimate:** {_display_value(result["estimate"])} {question["unit"]}  ·  '
             f'**Trade:** {result["action"]}  ·  **Shares:** {result["shares"]}'
         )
         _display_answer(question)
@@ -324,31 +339,23 @@ def _render_trader_tab():
     center = answer if maker_on_target else answer + direction * 2 * spread
     bid, ask = _quote_prices(center, spread)
     bid_col, ask_col = st.columns(2)
-    bid_col.metric("SAMPLE BID · SELL TO IT", f'{_display_value(bid)} {question["unit"]}')
-    ask_col.metric("SAMPLE ASK · BUY FROM IT", f'{_display_value(ask)} {question["unit"]}')
-    estimate = st.slider(
-        "Your estimate",
-        min_value=0,
-        max_value=question["maximum"],
-        value=question["estimate"],
-        step=question["step"],
-        key=f"{key}_estimate_{round_index}",
-    )
+    bid_col.metric("BID · SELL", _display_value(bid))
+    ask_col.metric("ASK · BUY", _display_value(ask))
     action = st.radio(
-        "Choose a side",
+        "Your trade",
         ("Buy at ask", "Sell at bid"),
         horizontal=True,
         key=f"{key}_action_{round_index}",
     )
     shares = st.slider(
-        "Shares · how confident are you?",
+        "Number of shares",
         min_value=1,
         max_value=5,
         value=2,
         help="Choose fewer shares when unsure and more when confident.",
         key=f"{key}_shares_{round_index}",
     )
-    if st.button("Lock trade & reveal answer", key=f"{key}_lock_{round_index}"):
+    if st.button("Place trade", key=f"{key}_lock_{round_index}"):
         user_pnl = _trade_credits(action, bid, ask, answer, shares)
         results.append(
             {
@@ -356,7 +363,6 @@ def _render_trader_tab():
                 "difficulty": question["difficulty"],
                 "answer": answer,
                 "unit": question["unit"],
-                "estimate": estimate,
                 "action": action,
                 "shares": shares,
                 "user_pnl": user_pnl,
@@ -368,17 +374,20 @@ def _render_trader_tab():
         st.rerun()
 
 
-def _render_maker_tab():
+def _render_maker_game():
     key = "maker"
     questions = MAKER_QUESTIONS
     round_index = st.session_state.setdefault(f"{key}_round", 0)
     results = st.session_state.setdefault(f"{key}_results", [])
     revealed = st.session_state.setdefault(f"{key}_revealed", False)
     if round_index == len(questions):
-        _display_game_summary(key, results, "Market maker", "Sample trader")
+        _display_game_summary(
+            key, results, "Market maker", "Sample trader", "Trader"
+        )
         return
 
     question = questions[round_index]
+    _display_running_pnl(results, "Market maker", "Sample trader")
     _display_round(question, round_index, len(questions), revealed)
     if revealed:
         result = results[-1]
@@ -462,27 +471,48 @@ def render_quote_lab():
         st.markdown(
             """
 <div class="quote-lab-heading" id="quote-lab">
-    <p class="eyebrow">Two games / six rounds each</p>
-    <h2>Trade the question.</h2>
-    <p>Estimate what you don't know. Set a price, take a side, and see how it settles.
-    Answers stay hidden until you lock in each round.</p>
+    <p class="eyebrow">A six-round market simulation</p>
+    <h2>Step into the market.</h2>
+    <p>Choose your role, make a decision each round, and watch your P&amp;L update.</p>
 </div>
 """,
             unsafe_allow_html=True,
         )
-        trader_tab, maker_tab = st.tabs(["Participant / Trader", "Market Maker"])
-        with trader_tab:
+        role = st.session_state.get("quote_lab_role")
+        if role is None:
             st.markdown(
-                "Trade against a sample market maker. Choose your side and how many "
-                "shares to trade; more shares mean more risk and reward."
+                '<div class="game-role-intro"><p>Choose how you want to play.</p>'
+                '<span>Both roles run for six rounds.</span></div>',
+                unsafe_allow_html=True,
             )
-            _render_trader_tab()
-        with maker_tab:
+            trader_col, maker_col = st.columns(2)
+            with trader_col:
+                st.markdown(
+                    '<div class="game-role-card"><span>01 / TRADER</span>'
+                    '<p>See the bid and ask. Choose a side and share count.</p></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("Play as Trader", key="quote_lab_start_trader"):
+                    _start_game("trader")
+            with maker_col:
+                st.markdown(
+                    '<div class="game-role-card"><span>02 / MARKET MAKER</span>'
+                    '<p>Set your estimate and spread against a sample trader.</p></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("Play as Market Maker", key="quote_lab_start_maker"):
+                    _start_game("maker")
+        elif role == "trader":
             st.markdown(
-                "Set your fair-value estimate and spread. A sample trader will take "
-                "one side of your quote."
+                "Each round, choose whether to buy at the ask or sell at the bid, "
+                "then set your share count."
             )
-            _render_maker_tab()
+            _render_trader_game()
+        elif role == "maker":
+            st.markdown(
+                "Set a fair-value estimate and spread. A sample trader will take one side."
+            )
+            _render_maker_game()
         st.caption(
             "P&L uses simulation credits (percentage price move × shares). "
             "No real money or live market data."
