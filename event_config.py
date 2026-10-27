@@ -1,5 +1,9 @@
 """Single source of truth for the 2026 hackathon landing page."""
 
+import os
+from pathlib import Path
+
+
 EVENT_CONFIG = {
     "title": "AI Market-Making Hackathon 2026",
     "year": 2026,
@@ -12,10 +16,11 @@ EVENT_CONFIG = {
     "round_count_min": 9,
     "round_count_max": 10,
     "status": "upcoming",
-    "registration_open": False,
-    "registration_url": "",
+    "registration_open": True,
+    "registration_csv": os.environ.get(
+        "QMML_REGISTRATIONS_CSV",
+        str(Path(__file__).parent / "registrations.csv"),
+    ),
     "prize_details": "Prize details to be announced",
     "partners": ("BCG", "CIRQL", "ENCODE"),
-    "registration_spreadsheet_secret": "spreadsheet_id_2026",
-    "registration_worksheet": "Registrations",
 }

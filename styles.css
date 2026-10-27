@@ -458,10 +458,19 @@ textarea:focus-visible {
 
 /* Preserve readable Streamlit controls if registration is enabled. */
 [data-testid="stForm"] {
-    margin: 24px 0 48px;
-    padding: 24px;
+    max-width: 860px;
+    margin: 24px auto 64px;
+    padding: clamp(20px, 4vw, 36px);
     border: 1px solid var(--line-light);
+    border-top: 4px solid var(--blue);
     background: var(--white);
+    box-shadow: 0 16px 40px rgba(8, 13, 20, .06);
+}
+
+[data-testid="stForm"] label {
+    color: var(--navy) !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
 }
 
 [data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea,
@@ -473,14 +482,19 @@ textarea:focus-visible {
 
 [data-testid="stFormSubmitButton"] button {
     min-height: 44px;
+    padding: 0 22px;
     border: 0;
     border-radius: 0;
     background: var(--blue);
     color: var(--white);
     font-weight: 700;
+    transition: background-color .16s ease, transform .16s ease;
 }
 
-[data-testid="stFormSubmitButton"] button:hover { background: #075FD8; }
+[data-testid="stFormSubmitButton"] button:hover {
+    background: #075FD8;
+    transform: translateY(-1px);
+}
 
 .tf-team-grid, .rt-grid {
     display: flex;
