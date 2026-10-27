@@ -25,13 +25,10 @@ from event_sections import (
     render_stats,
     render_features,
     render_timeline,
-    render_code_terminal,
-    render_leaderboard,
+    render_quote_lab,
     render_who,
     render_prizes,
-    render_hype,
     render_partners,
-    render_cta,
     render_footer,
 )
 from components import render_registration, render_team_formation, render_registered_teams
@@ -40,15 +37,18 @@ render_hero()
 render_stats()
 render_features()
 render_timeline()
-render_code_terminal()
-render_leaderboard()
+render_quote_lab()
 render_who()
-render_prizes()
-render_hype()
-render_partners()
 render_registration()
 if EVENT_CONFIG["registration_open"]:
-    render_team_formation()
-    render_registered_teams()
-render_cta()
+    if st.toggle("Already registered? Open the Team Hub", key="show_team_hub"):
+        from sheets_store import STORAGE_ERRORS
+
+        try:
+            render_team_formation()
+            render_registered_teams()
+        except STORAGE_ERRORS:
+            st.error("The Team Hub cannot reach registration storage. Please try again later.")
+render_prizes()
+render_partners()
 render_footer()

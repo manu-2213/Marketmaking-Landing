@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from event_config import EVENT_CONFIG
+from event_sections import _quote_prices
 from registration_store import CSVRegistrationStore, REGISTRATION_HEADERS
 import components
 import csv
@@ -11,6 +12,10 @@ import tempfile
 
 
 class EventConfigTests(unittest.TestCase):
+    def test_quote_prices_are_centered_on_the_estimate(self):
+        self.assertEqual(_quote_prices(100, 4), (98, 102))
+        self.assertEqual(_quote_prices(100, 0), (100, 100))
+
     def test_2026_event_details_are_centralized(self):
         self.assertEqual(EVENT_CONFIG["title"], "AI Market-Making Hackathon 2026")
         self.assertEqual(EVENT_CONFIG["opening_date"], "19 November 2026")
@@ -18,11 +23,9 @@ class EventConfigTests(unittest.TestCase):
         self.assertIn("In person", EVENT_CONFIG["venue"])
         self.assertEqual(EVENT_CONFIG["team_size"], "2–4 participants")
 
-    def test_registration_is_open_and_uses_a_private_csv(self):
+    def test_registration_is_open_and_no_longer_uses_local_csv(self):
         self.assertTrue(EVENT_CONFIG["registration_open"])
-        self.assertEqual(
-            Path(EVENT_CONFIG["registration_csv"]).name, "registrations.csv"
-        )
+        self.assertNotIn("registration_csv", EVENT_CONFIG)
         self.assertEqual(
             (EVENT_CONFIG["round_count_min"], EVENT_CONFIG["round_count_max"]),
             (9, 10),
@@ -61,7 +64,10 @@ class EventConfigTests(unittest.TestCase):
     def test_registration_helpers_share_csv_with_team_hub(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "registrations.csv"
-            with patch.object(components, "_REGISTRATION_CSV", path):
+            with patch.object(
+                components, "_get_registration_store",
+                return_value=CSVRegistrationStore(path),
+            ):
                 components._save_registration(
                     "Test Student",
                     "QM123456",

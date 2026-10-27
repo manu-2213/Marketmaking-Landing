@@ -1,291 +1,225 @@
-"""Presentation sections for the QMML 2026 hackathon landing page."""
+"""Editorial presentation for the QMML hackathon."""
 
 from html import escape
 
 import streamlit as st
 
 from event_config import EVENT_CONFIG
-from components import get_team_count
 
 
-def _section_heading(label: str, title: str, description: str = "") -> str:
-    summary = (
-        f'<p class="section-description">{escape(description)}</p>'
-        if description
-        else ""
-    )
+def _section_heading(label, title, description=""):
     return (
         '<div class="section-heading">'
         f'<p class="eyebrow">{escape(label)}</p>'
-        f'<h2>{escape(title)}</h2>{summary}</div>'
+        f'<h2>{escape(title)}</h2>'
+        f'<p class="section-description">{escape(description)}</p></div>'
     )
 
 
 def render_hero():
-    st.markdown(
+    registration_label = "Registration open" if EVENT_CONFIG["registration_open"] else "Coming soon"
+    st.html(
         f"""
-        <header class="site-nav">
-            <a class="brand" href="#top" aria-label="QMML Hackathon home">
-                <span class="brand-mark">QMML</span>
-                <span>Machine Learning Society<br><small>Queen Mary University of London</small></span>
-            </a>
-            <nav aria-label="Main navigation">
-                <a href="#challenge">The challenge</a>
-                <a href="#how-it-works">How it works</a>
-                <a href="#prizes">Prizes</a>
-                <a href="#partners">Partners</a>
-                <a class="nav-cta" href="#register">Take part</a>
-            </nav>
-        </header>
-        <main id="top">
-            <section class="hero" aria-labelledby="hero-title">
-                <div class="hero-copy">
-                    <p class="eyebrow hero-eyebrow">QMML · {EVENT_CONFIG["year"]}</p>
-                    <h1 id="hero-title">Make the<br><span>Market.</span></h1>
-                    <p class="hero-event">{escape(EVENT_CONFIG["title"])}</p>
-                    <p class="hero-description">
-                        Build a machine-learning model, quote a market and test your
-                        decisions in a live, simulated competition.
-                    </p>
-                    <a class="button button-blue" href="#how-it-works">Explore the challenge <span aria-hidden="true">↘</span></a>
-                </div>
-                <aside class="hero-note">
-                    <p class="eyebrow">Two dates · In person</p>
-                    <div class="hero-date">
-                        <span>OPENING CEREMONY</span>
-                        <strong>{escape(EVENT_CONFIG["opening_date"])}</strong>
-                    </div>
-                    <div class="hero-date">
-                        <span>LIVE COMPETITION + CLOSING</span>
-                        <strong>{escape(EVENT_CONFIG["competition_date"])}</strong>
-                    </div>
-                    <p class="hero-venue">{escape(EVENT_CONFIG["venue"])}</p>
-                </aside>
-            </section>
-        </main>
-        """,
-        unsafe_allow_html=True,
+<nav class="site-nav" aria-label="Main navigation">
+    <a class="brand" href="#top"><span class="brand-mark">QMML<span>/</span></span>
+    <span class="brand-caption">Machine Learning Society<br>Queen Mary University of London</span></a>
+    <div class="nav-links"><a href="#challenge">The challenge</a><a href="#how-it-works">How it works</a>
+    <a class="nav-cta" href="#register">Register <span aria-hidden="true">↗</span></a></div>
+</nav>
+<section class="hero" id="top" aria-label="AI Market-Making Hackathon 2026">
+    <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot"></span> {registration_label} / November 2026</p>
+        <p class="hero-event">{escape(EVENT_CONFIG["title"])}</p>
+        <h1>Make the<br><span class="market-accent">Market.</span></h1>
+        <p class="hero-description">Your model. Your market.<br>Turn machine learning into a competitive edge.</p>
+        <div class="hero-actions"><a class="button button-blue" href="#register">Register now <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="#challenge">Explore the challenge <span aria-hidden="true">↓</span></a></div>
+    </div>
+    <aside class="event-pass" aria-label="Event dates">
+        <div class="pass-header"><span>THE 2026 EDITION</span><span>IN PERSON</span></div>
+        <div class="pass-date"><span class="date-number">19</span><div><span class="date-month">NOVEMBER 2026</span>
+        <h2>Opening<br>ceremony</h2><p>{escape(EVENT_CONFIG["opening_date"])}</p></div></div>
+        <div class="pass-date"><span class="date-number">26</span><div><span class="date-month">NOVEMBER 2026</span>
+        <h2>Live competition<br>&amp; closing</h2><p>{escape(EVENT_CONFIG["competition_date"])}</p></div></div>
+        <div class="pass-footer"><span>QMML / LONDON</span><span>Venue to be announced</span></div>
+    </aside>
+</section>
+""",
     )
 
 
 def render_stats():
-    registration_count = get_team_count()
     st.markdown(
         f"""
-        <section class="date-strip" aria-label="Event details">
-            <div><span class="eyebrow">Registrations</span><strong>{registration_count} registered</strong></div>
-            <div><span class="eyebrow">Teams</span><strong>{escape(EVENT_CONFIG["team_size"])}</strong></div>
-            <div><span class="eyebrow">Open to</span><strong>{escape(EVENT_CONFIG["eligibility"])}</strong></div>
-        </section>
-        """,
-        unsafe_allow_html=True,
+<section class="detail-strip" aria-label="Participation at a glance">
+    <div><span class="eyebrow">01 / The people</span><strong>All universities welcome</strong></div>
+    <div><span class="eyebrow">02 / The team</span><strong>{escape(EVENT_CONFIG["team_size"])}</strong></div>
+    <div><span class="eyebrow">03 / The starting point</span><strong>Python. ML. Curiosity.</strong></div>
+</section>
+""", unsafe_allow_html=True,
     )
 
 
 def render_features():
     st.markdown(
-        _section_heading(
-            "The challenge",
-            "Machine learning meets market making.",
-            "Use Python and machine learning to estimate value, then decide how to quote around it. "
-            "No quantitative-finance background is required.",
+        '<div id="challenge"></div>'
+        + _section_heading(
+            "01 / The challenge",
+            "Build a model. Make a market.",
+            "A machine-learning challenge with a strategic twist. Predict an underlying value, "
+            "quote a buying and selling price, then put your decisions to the test.",
         )
         + """
-        <section id="challenge" class="intro-grid">
-            <article class="editorial-card">
-                <span class="card-index">01</span>
-                <h3>Learn from data</h3>
-                <p>Study training observations with features and a target. Build a model that estimates the target value.</p>
-            </article>
-            <article class="editorial-card">
-                <span class="card-index">02</span>
-                <h3>Make a market</h3>
-                <p>For each test observation, submit a fair-value prediction and a bid and ask around that estimate.</p>
-            </article>
-            <article class="editorial-card">
-                <span class="card-index">03</span>
-                <h3>Manage the trade-off</h3>
-                <p>A tighter spread may be more competitive, but a poor estimate or narrow quote can expose you to adverse outcomes.</p>
-            </article>
-        </section>
-        """,
-        unsafe_allow_html=True,
+<section class="intro-grid">
+    <article class="editorial-card"><span class="card-index">01</span><h3>Find the signal.</h3>
+    <p>Explore training data, identify useful features and train a model to estimate the target value.</p><span class="card-footer">DATA → PREDICTION</span></article>
+    <article class="editorial-card"><span class="card-index">02</span><h3>Price the uncertainty.</h3>
+    <p>Choose your bid and ask. A narrow spread is competitive, but leaves less room for a mistaken prediction.</p><span class="card-footer">PREDICTION → QUOTE</span></article>
+    <article class="editorial-card"><span class="card-index">03</span><h3>Adapt your strategy.</h3>
+    <p>Trade against other teams in a simulated market. Learn from each round and refine your approach.</p><span class="card-footer">QUOTE → COMPETITION</span></article>
+</section>
+""", unsafe_allow_html=True,
     )
 
 
 def render_timeline():
-    rounds = (
-        f"About {EVENT_CONFIG['round_count_min']}–"
-        f"{EVENT_CONFIG['round_count_max']} datasets or rounds"
+    stages = [
+        ("Build", "Train your model on historical observations with features and a target."),
+        ("Predict", "Receive a testing observation and estimate its underlying fair value."),
+        ("Quote", "Submit a bid (buy price) and ask (sell price). Spread = ask − bid."),
+        ("Trade", "The smallest eligible spread wins market-maker allocation, subject to the competition's existing rules. Other teams trade against it."),
+        ("Refine", "Adjust predictions and spreads as results become available. Performance follows the event's specified metrics."),
+    ]
+    cards = "".join(
+        f'<article class="process-step"><span class="step-number">0{i}</span>'
+        f'<h3>{escape(title)}</h3><p>{escape(body)}</p></article>'
+        for i, (title, body) in enumerate(stages, 1)
     )
     st.markdown(
-        _section_heading(
-            "From model to market",
-            "How the competition works",
-            f"{rounds}; the final number is configurable for the event.",
+        '<div id="how-it-works"></div>'
+        + _section_heading(
+            "02 / From data to decisions", "Five steps. One competitive market.",
+            f"Approximately {EVENT_CONFIG['round_count_min']}–{EVENT_CONFIG['round_count_max']} "
+            "datasets or rounds. No quantitative-finance experience required.",
         )
-        + f"""
-        <section id="how-it-works" class="process-list">
-            <article class="process-step">
-                <span class="card-index">01</span>
-                <div><h3>Build a model</h3><p>Use historical or training data with features and a target variable to train a model.</p></div>
-            </article>
-            <article class="process-step">
-                <span class="card-index">02</span>
-                <div><h3>Estimate fair value</h3><p>For each round, receive a testing observation and submit your estimate of its underlying value.</p></div>
-            </article>
-            <article class="process-step">
-                <span class="card-index">03</span>
-                <div><h3>Quote bid and ask</h3><p><strong>Bid</strong> is the price at which you are willing to buy; <strong>ask</strong> is the price at which you are willing to sell. The spread is ask minus bid.</p></div>
-            </article>
-            <article class="process-step">
-                <span class="card-index">04</span>
-                <div><h3>Compete as market makers</h3><p>The team with the smallest eligible spread becomes market maker for the round, subject to the competition's allocation rules. Other teams trade against it in a live simulation.</p></div>
-            </article>
-            <article class="process-step">
-                <span class="card-index">05</span>
-                <div><h3>Adapt and compete</h3><p>Adjust predictions, spreads and strategy as the competition progresses and leaderboard information becomes available. Performance is assessed using the event's specified simulated-trading outcomes and metrics.</p></div>
-            </article>
-        </section>
-        """,
+        + f'<section class="process-list">{cards}</section>',
         unsafe_allow_html=True,
     )
 
 
-def render_code_terminal():
-    st.markdown(
-        """
-        <section class="quote-explainer" aria-label="Bid, ask and spread definitions">
-            <div>
-                <p class="eyebrow">A simple example</p>
-                <h2>Quote around your estimate.</h2>
-                <p>Your fair-value estimate is the centre of your decision—not a guaranteed market price. Balance a competitive quote against the risk that your estimate is wrong.</p>
-            </div>
-            <div class="quote-terms">
-                <p><span>BUY</span><strong>Bid</strong><small>Price at which your team is willing to buy.</small></p>
-                <p><span>SELL</span><strong>Ask</strong><small>Price at which your team is willing to sell.</small></p>
-                <p class="quote-spread"><span>ASK − BID</span><strong>Spread</strong><small>The distance between your ask and bid.</small></p>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+def _quote_prices(estimate, spread):
+    half_spread = spread / 2
+    return estimate - half_spread, estimate + half_spread
 
 
-def render_leaderboard():
-    st.markdown(
-        _section_heading(
-            "Competition status",
-            "The 2026 leaderboard starts empty.",
-            "No previous-event rankings are carried into this competition. Results will be shown when the live competition and its data are available.",
+def render_quote_lab():
+    with st.container(border=True, key="quote_lab"):
+        st.markdown(
+            """
+<div class="quote-lab-heading" id="quote-lab">
+    <p class="eyebrow">Interactive sandbox / example only</p>
+    <h2>Set your quote.</h2>
+    <p>Choose an estimated fair value and spread. See how your bid and ask compare
+    with a hypothetical team's spread—no live prices or competition data.</p>
+</div>
+""",
+            unsafe_allow_html=True,
         )
-        + """
-        <section class="empty-board" aria-live="polite">
-            <span class="eyebrow">AI MARKET-MAKING HACKATHON · 2026</span>
-            <strong>No 2026 results yet</strong>
-            <span>Leaderboard entries will appear during the competition.</span>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+        estimate_col, spread_col, comparison_col = st.columns(3)
+        with estimate_col:
+            estimate = st.slider(
+                "Your estimated fair value",
+                min_value=50.0,
+                max_value=150.0,
+                value=100.0,
+                step=1.0,
+                key="quote_lab_estimate",
+                help="Your model's estimate of the underlying value.",
+            )
+        with spread_col:
+            spread = st.slider(
+                "Your spread",
+                min_value=0.0,
+                max_value=20.0,
+                value=4.0,
+                step=0.5,
+                key="quote_lab_spread",
+                help="Ask minus bid. A narrower spread is more competitive, but leaves less room for estimation error.",
+            )
+        with comparison_col:
+            comparison_spread = st.slider(
+                "Example comparison spread",
+                min_value=0.0,
+                max_value=20.0,
+                value=5.0,
+                step=0.5,
+                key="quote_lab_comparison",
+                help="Set a hypothetical competing team's spread to compare against.",
+            )
+
+        bid, ask = _quote_prices(estimate, spread)
+        bid_col, estimate_result_col, ask_col = st.columns(3)
+        bid_col.metric("BID / BUY", f"{bid:.1f}")
+        estimate_result_col.metric("YOUR ESTIMATE", f"{estimate:.1f}")
+        ask_col.metric("ASK / SELL", f"{ask:.1f}")
+        if spread < comparison_spread:
+            status = "Your example spread is narrower than the comparison."
+        elif spread > comparison_spread:
+            status = "Your example spread is wider than the comparison."
+        else:
+            status = "Your example spread matches the comparison."
+        st.markdown(
+            f'<p class="quote-lab-result"><strong>Spread: {spread:.1f}</strong>'
+            f' <span>vs. {comparison_spread:.1f} comparison</span></p>'
+            f'<p class="quote-lab-status">{status} A narrower eligible spread may receive '
+            "market-maker allocation, subject to the event's competition rules.</p>",
+            unsafe_allow_html=True,
+        )
 
 
 def render_who():
     st.markdown(
-        _section_heading(
-            "Who can take part",
-            "Bring your curiosity. Learn the market.",
-            "Open to university students across universities. Teams of two to four participants are intended.",
-        )
-        + """
-        <section id="who-can-join" class="participation-grid">
-            <div><span class="card-index">A</span><h3>Python and ML</h3><p>Build and refine a model from data. You do not need prior quantitative-finance experience.</p></div>
-            <div><span class="card-index">B</span><h3>Team strategy</h3><p>Work together to choose predictions and quotes, then adapt your approach as the simulated competition unfolds.</p></div>
-        </section>
-        """,
-        unsafe_allow_html=True,
+        """
+<section class="participation-grid">
+    <div><p class="eyebrow">03 / Made for curious minds</p><h2>You bring the model.<br>Bring your team, too.</h2></div>
+    <div><p>Open to university students across universities. A working knowledge of Python
+    and machine learning is a great starting point. Finance experience isn't required.</p>
+    <p>Already have a team? One representative can register your group of 2–4.
+    Coming on your own? Register as looking for teammates and use the Team Hub.</p></div>
+</section>
+""", unsafe_allow_html=True,
     )
 
 
 def render_prizes():
     st.markdown(
-        _section_heading(
-            "Prizes",
-            EVENT_CONFIG["prize_details"],
-            "The 2026 prize structure has not been confirmed. No cash amounts or awards are being advertised as guaranteed.",
-        )
-        + """
-        <section id="prizes" class="prize-note">
-            <span class="eyebrow">DETAILS TO FOLLOW</span>
-            <p>Prize categories and any amounts will be published here once confirmed.</p>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_hype():
-    st.markdown(
-        """
-        <section class="simulation-note">
-            <p class="eyebrow">A simulated competition</p>
-            <h2>Compete on strategy, not capital.</h2>
-            <p>This is a competitive, simulated, zero-sum trading game: under the simulation's accounting rules, one team's gains correspond to other teams' losses. No real capital is traded.</p>
-        </section>
-        """,
-        unsafe_allow_html=True,
+        f"""
+<section class="prize-note" id="prizes"><div><p class="eyebrow">The rewards</p>
+    <h3>{escape(EVENT_CONFIG["prize_details"])}</h3></div>
+    <p>Confirmed categories and awards will be published here.<br>No prize amounts are confirmed yet.</p></section>
+""", unsafe_allow_html=True,
     )
 
 
 def render_partners():
-    partners = "".join(
-        f'<span class="partner-name">{escape(name)}</span>'
-        for name in EVENT_CONFIG["partners"]
-    )
-    st.markdown(
-        _section_heading(
-            "QMML Society Partners",
-            "Our society partner network.",
-        )
-        + f"""
-        <section id="partners" class="partners-list" aria-label="QMML Society Partners">
-            {partners}
-        </section>
-        <p class="partner-disclaimer">Society partner recognition does not confirm event sponsorship, prize funding or specific benefits for this hackathon.</p>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_cta():
-    call_to_action = (
-        '<a class="button button-blue" href="#register">Register for the hackathon</a>'
-        if EVENT_CONFIG["registration_open"]
-        else '<span class="registration-status">Registration details to be announced</span>'
-    )
+    names = "".join(f'<span>{escape(name)}</span>' for name in EVENT_CONFIG["partners"])
     st.markdown(
         f"""
-        <section class="closing-cta">
-            <p class="eyebrow">AI Market-Making Hackathon 2026</p>
-            <h2>Ready to make the market?</h2>
-            <p>Join students from universities across the UK for a hands-on, simulated market-making challenge.</p>
-            {call_to_action}
-        </section>
-        """,
-        unsafe_allow_html=True,
+<section class="partners-section" id="partners"><p class="eyebrow">QMML Society Partners</p>
+    <div class="partners-list">{names}</div>
+    <p class="partner-disclaimer">Society partnerships do not imply hackathon sponsorship or prize funding.</p></section>
+""", unsafe_allow_html=True,
     )
 
 
 def render_footer():
     st.markdown(
-        """
-        <footer class="site-footer">
-            <a class="brand" href="https://www.qmul.ac.uk/" target="_blank" rel="noreferrer">
-                <span class="brand-mark">QMML</span>
-                <span>Machine Learning Society<br><small>Queen Mary University of London</small></span>
-            </a>
-            <span>© 2026 Queen Mary University of London Machine Learning Society</span>
-        </footer>
-        """,
-        unsafe_allow_html=True,
+        f"""
+<footer class="site-footer"><div><a class="brand" href="#top">QMML</a>
+<p>Queen Mary University of London<br>Machine Learning Society</p></div>
+<div class="footer-links"><a href="https://www.qmsu.org/groups/qmml/">The society ↗</a>
+<a href="#register">Registration ↗</a><span>© {EVENT_CONFIG["year"]} QMML</span></div></footer>
+<p class="simulation-disclaimer">A simulated, zero-sum competition. Under the simulation's accounting rules,
+one team's gains correspond to other teams' losses. No real capital is traded.</p>
+""", unsafe_allow_html=True,
     )
