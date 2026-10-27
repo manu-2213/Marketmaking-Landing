@@ -29,6 +29,10 @@ export, copy rows with `event_id = qmml-2026-november` into a separate tab and d
 that tab; do not assume hiding/filtering rows excludes them from CSV exports.
 Do not publish the spreadsheet or a participant export.
 
+- The site shows aggregate counts of registered teams and represented people.
+  Declared team sizes count all team members; solo registrants count as one person,
+  and people who form a named team are counted once. This is an early-interest
+  list, not a ticket purchase; registrants will be emailed when tickets go on sale.
 - New records include name, student email (`email`), student ID (`student_id`),
   university, degree, team name/size, ML experience and an optional note.
 - `looking_for_team` is explicitly stored; the Team Hub also uses the existing
