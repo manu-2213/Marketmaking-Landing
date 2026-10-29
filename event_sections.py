@@ -27,7 +27,7 @@ def render_hero():
     <a class="brand" href="#top"><span class="brand-mark">QMML<span>/</span></span>
     <span class="brand-caption">Machine Learning Society<br>Queen Mary University of London</span></a>
     <div class="nav-links"><a href="#challenge">The challenge</a><a href="#how-it-works">How it works</a>
-    <a class="nav-cta" href="#register">Register interest <span aria-hidden="true">↗</span></a></div>
+    <a href="#prizes">Prizes</a><a class="nav-cta" href="#register">Register interest <span aria-hidden="true">↗</span></a></div>
 </nav>
 <section class="hero" id="top" aria-label="AI Market-Making Hackathon 2026">
     <div class="hero-copy">
@@ -67,7 +67,8 @@ def render_stats():
 <section class="detail-strip" aria-label="Participation at a glance">
     <div><span class="eyebrow">01 / Teams registered</span><strong>{escape(team_label)}</strong></div>
     <div><span class="eyebrow">02 / People represented</span><strong>{escape(member_label)}</strong></div>
-    <div><span class="eyebrow">03 / Early interest</span><strong>We’ll email when tickets go on sale</strong></div>
+    <div><span class="eyebrow">03 / Prize pot</span><strong><a href="#prizes">{_prize_pot_label()} and growing</a></strong></div>
+    <div><span class="eyebrow">04 / Tickets</span><strong>We’ll email you when they go on sale</strong></div>
 </section>
 """, unsafe_allow_html=True,
     )
@@ -542,12 +543,48 @@ def render_who():
     )
 
 
+def _prize_pot_label():
+    return f"£{EVENT_CONFIG['prize_pot_gbp']:,}+"
+
+
+PRIZE_DESCRIPTIONS = {
+    "Best overall P&L": "The highest cumulative profit across every round of the competition.",
+    "Best Sortino ratio": "The best risk-adjusted return, penalising only downside volatility.",
+    "Special awards": "Recognising teams at every level of study, plus one prize drawn at random.",
+}
+
+
 def render_prizes():
+    categories = EVENT_CONFIG["prize_categories"]
+    prize_count = sum(len(awards) for _, awards in categories)
+    cards = "".join(
+        f'<article class="prize-card"><span class="card-index">0{i}</span>'
+        f'<h3>{escape(title)}</h3><p>{escape(PRIZE_DESCRIPTIONS.get(title, ""))}</p>'
+        '<ul>' + "".join(f"<li>{escape(award)}</li>" for award in awards) + '</ul></article>'
+        for i, (title, awards) in enumerate(categories, 1)
+    )
     st.markdown(
-        f"""
-<section class="prize-note" id="prizes"><div><p class="eyebrow">The rewards</p>
-    <h3>{escape(EVENT_CONFIG["prize_details"])}</h3></div>
-    <p>Confirmed categories and awards will be published here.<br>No prize amounts are confirmed yet.</p></section>
+        '<div id="prizes"></div>'
+        + _section_heading(
+            "04 / Prizes",
+            "A prize pot that grows with every ticket.",
+            "All ticket revenue is spent on prizes. The more teams that join, "
+            "the bigger the rewards.",
+        )
+        + f"""
+<section class="prize-layout">
+    <div class="pot-card">
+        <p class="eyebrow"><span class="status-dot"></span> Current prize pot</p>
+        <strong>{_prize_pot_label()}</strong>
+        <span class="pot-growing">and growing</span>
+        <ul class="pot-facts">
+            <li><span>100%</span> of ticket revenue goes into the pot</li>
+            <li><span>{prize_count}</span> prizes across {len(categories)} categories</li>
+        </ul>
+        <p class="pot-note">Individual prize amounts will be announced closer to the event.</p>
+    </div>
+    <div class="prize-grid">{cards}</div>
+</section>
 """, unsafe_allow_html=True,
     )
 

@@ -39,9 +39,10 @@ render_features()
 render_timeline()
 render_quote_lab()
 render_who()
+render_prizes()
 render_registration()
 if EVENT_CONFIG["registration_open"]:
-    if st.toggle("Already registered? Open the Team Hub", key="show_team_hub"):
+    if st.toggle("Already registered? Find or manage your team", key="show_team_hub"):
         from sheets_store import STORAGE_ERRORS
 
         try:
@@ -49,6 +50,5 @@ if EVENT_CONFIG["registration_open"]:
             render_registered_teams()
         except STORAGE_ERRORS:
             st.error("The Team Hub cannot reach registration storage. Please try again later.")
-render_prizes()
 render_partners()
 render_footer()

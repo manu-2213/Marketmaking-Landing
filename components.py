@@ -851,7 +851,7 @@ def render_registration():
     with info:
         st.markdown("""
 <div class="registration-intro">
-    <p class="eyebrow"><span class="status-dot"></span> 04 / Early interest open</p>
+    <p class="eyebrow"><span class="status-dot"></span> 05 / Early interest open</p>
     <h2>Join the<br>early-interest<br>list.</h2>
     <p>This is not a ticket purchase. We’ll email you when tickets go on sale.</p>
     <div class="registration-facts">
@@ -869,9 +869,14 @@ def render_registration():
                 "You're on the early-interest list. We'll email you when tickets are released."
             )
             st.write("Your details have been saved to the organiser's Google Sheet.")
-            st.caption("Looking for teammates? Open the Team Hub below.")
+            if st.session_state.get(_HUB_IDENTITY_KEY):
+                st.button(
+                    "Find teammates in the Team Hub  ↓", key="open_team_hub", type="primary",
+                    on_click=lambda: st.session_state.update(show_team_hub=True),
+                )
             if st.button("Register another participant", key="register_another"):
                 st.session_state.pop("registration_saved_2026", None)
+                st.session_state.pop(_HUB_IDENTITY_KEY, None)
                 for key in list(st.session_state):
                     if key.startswith("signup_"):
                         del st.session_state[key]
@@ -943,6 +948,9 @@ def render_registration():
                             reg_team_clean, reg_team_size, reg_experience, reg_interest,
                         )
                         st.session_state["registration_saved_2026"] = True
+                        if _is_looking_for_team and not reg_team_clean:
+                            # Sign the new registrant straight into the Team Hub.
+                            st.session_state[_HUB_IDENTITY_KEY] = reg_email_clean
                         st.rerun()
                 except STORAGE_ERRORS:
                     st.error(
@@ -952,298 +960,385 @@ def render_registration():
                     )
 
 
-def render_team_formation():
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown('<div id="find-team"></div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align:center;margin-bottom:40px;">
-        <div class="section-tag">Team Hub</div>
-        <div class="section-title">Find Your Team</div>
-        <div class="section-subtitle" style="margin:0 auto;">
-            Already registered? Set your team name, find teammates,
-            optionally open it to recruit more people, browse open teams and join one,
-            or leave/delete your current team.
-            Use the email you registered with.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+_MAX_TEAM_SIZE = 4
+_HUB_IDENTITY_KEY = "team_hub_email"
+_HUB_FLASH_KEY = "team_hub_flash"
 
-    # ── Open teams showcase ───────────────────────────────────────────────────
-    open_teams = _get_open_teams()
 
-    if open_teams:
-        st.markdown("""
-        <div style="text-align:center;margin-bottom:24px;">
-            <div class="tf-open-label">Open Teams &mdash; Looking for Members</div>
-        </div>
-        """, unsafe_allow_html=True)
+def _plural(count, word):
+    return f"{count} {word}{'s' if count != 1 else ''}"
 
-        team_html = '<div class="tf-team-grid">'
-        for name, info in open_teams.items():
-            size = info["effective_size"]
-            spots = info["open_spots"]
-            team_html += (
-                f'<div class="tf-team-card">'
-                f'<div class="tf-team-name">{escape(name)}</div>'
-                f'<div class="tf-team-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
-                f'<div class="tf-team-spots">{spots} spot{"s" if spots != 1 else ""} open</div>'
-                f'</div>'
-            )
-        team_html += '</div>'
-        st.markdown(team_html, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="text-align:center;margin-bottom:20px;color:var(--text-muted);font-size:1.05rem;">
-            No open teams yet &mdash; open yours below!
-        </div>
-        """, unsafe_allow_html=True)
 
-    # ── Step 1: Choose / Update Team Name ─────────────────────────────────────
-    st.markdown("""
-    <div style="text-align:center;margin-bottom:24px;">
-        <div class="tf-form-header" style="justify-content:center;">
-            <span class="tf-form-icon">\u270f\ufe0f</span>
-            <span class="tf-form-title">Step 1 &mdash; Choose / Update Team Name</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align:center;margin-bottom:16px;color:var(--text-secondary);font-size:0.95rem;">
-        Registered but didn't pick a team name, or want to change it? Enter your email and team name below.
-    </div>
-    """, unsafe_allow_html=True)
+def _set_team_openness(team_name: str, max_team_size: int | None):
+    """List a Team Hub team publicly up to max_team_size members, or make it
+    private when max_team_size is None. Applies to every member's row."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return 0
+    header = rows[0]
+    ofj_col = _col_index(header, "open_for_joining")
+    spots_col = _col_index(header, "open_spots")
+    team_lower = team_name.strip().lower()
+    changed = 0
+    for idx, r in enumerate(rows[1:], start=2):
+        if (r[5] if len(r) > 5 else "").strip().lower() == team_lower:
+            ws.update_cell(idx, ofj_col, "yes" if max_team_size else "")
+            ws.update_cell(idx, spots_col, str(max_team_size) if max_team_size else "")
+            changed += 1
+    return changed
 
-    with st.form("update_team_name_form", clear_on_submit=True):
-        uc1, uc2 = st.columns(2, gap="medium")
-        with uc1:
-            un_email = st.text_input("Your registered email *", key="un_email")
-        with uc2:
-            un_team = st.text_input("Team name *", key="un_team")
-        un_submitted = st.form_submit_button("Set Team Name", use_container_width=True)
 
-        if un_submitted:
-            un_email_clean = un_email.strip()
-            un_team_clean = un_team.strip()
-            if not un_email_clean or not un_team_clean:
-                st.warning("Please fill in both fields.")
-            else:
-                result = _verify_email(un_email_clean)
-                if result is None:
-                    st.error("Email not found. Make sure you've registered first.")
-                else:
-                    _, row = result
-                    current_team = (row.get("team_name") or "").strip()
+def _find_hub_team(team_name: str):
+    """Return (team_name, members) for a team formed through the Team Hub.
 
-                    if _team_name_taken_by_other_group(un_team_clean, current_team):
-                        st.error("That team name is already used by another group. Try a different one.")
-                    else:
-                        # If the registrant is already in a team, rename the whole team so
-                        # open-team joiners and existing teammates stay together.
-                        if current_team:
-                            changed = _rename_team_for_all_members(current_team, un_team_clean)
-                            if changed > 0:
-                                st.success(
-                                    f"**Team renamed to \"{un_team_clean}\" for all {changed} member"
-                                    f"{'s' if changed != 1 else ''}!**"
-                                )
-                            else:
-                                st.error("Something went wrong. Please try again.")
-                        else:
-                            ok = _update_team_name(un_email_clean, un_team_clean)
-                            if ok:
-                                st.success(f"**Team name set to \"{un_team_clean}\"!**")
-                            else:
-                                st.error("Something went wrong. Please try again.")
+    Pre-formed team registrations (one row for 2-4 people) cannot be joined.
+    """
+    members = _get_teammates(team_name)
+    if not members or any(
+        (m.get("team_size") or "").strip() != _SOLO_LABEL for m in members
+    ):
+        return None
+    return members[0]["team_name"].strip(), members
 
-    st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Step 4: Leave / Delete Team ─────────────────────────────────────────
-    st.markdown("""
-    <div style="text-align:center;margin-bottom:16px;">
-        <div class="tf-form-header" style="justify-content:center;">
-            <span class="tf-form-icon">🗑️</span>
-            <span class="tf-form-title">Manage Team &mdash; Leave / Delete</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align:center;margin-bottom:16px;color:var(--text-secondary);font-size:0.95rem;">
-        If you are a solo participant in a team, this will remove only you from that team.<br>
-        If you registered a pre-formed team (2&ndash;4), this will delete that team entry.
-    </div>
-    """, unsafe_allow_html=True)
+def _join_team(email: str, team_name: str):
+    """Add a registrant without a team to a Team Hub team. Returns (ok, message)."""
+    found = _find_hub_team(team_name)
+    if found is None:
+        return False, "No team with that name is accepting members. Check the exact spelling with your teammate."
+    name, members = found
+    if len(members) >= _MAX_TEAM_SIZE:
+        return False, f'Team "{name}" is already full ({_MAX_TEAM_SIZE} members).'
+    if not _update_team_name(email, name):
+        return False, "Something went wrong. Please try again."
+    others = [m.get("name", "").strip() for m in members if m.get("name", "").strip()]
+    if not others:
+        return True, f'You joined "{name}". Good luck!'
+    return True, f'You joined "{name}". Your teammates: {", ".join(others)}.'
 
-    with st.form("leave_or_delete_team_form", clear_on_submit=True):
-        ld_email = st.text_input("Your registered email *", key="ld_email")
-        ld_confirm = st.checkbox(
-            "I understand this action updates team assignments immediately",
-            key="ld_confirm",
+
+def _start_team(email: str, team_name: str, target_size: int, listed: bool):
+    """Create a Team Hub team for a registrant. Returns (ok, message)."""
+    if _team_name_taken_by_other_group(team_name):
+        return False, "That team name is already taken. Please choose another."
+    if not _update_team_name(email, team_name):
+        return False, "Something went wrong. Please try again."
+    if listed:
+        _set_team_openness(team_name, target_size)
+        return True, (
+            f'Team "{team_name}" created and listed with '
+            f"{_plural(target_size - 1, 'open spot')}."
         )
-        ld_submitted = st.form_submit_button("Leave / Delete Team", use_container_width=True)
+    return True, f'Team "{team_name}" created. Share the exact name with friends so they can join.'
 
-        if ld_submitted:
-            ld_email_clean = ld_email.strip()
-            if not ld_email_clean:
-                st.warning("Please enter your email.")
-            elif not ld_confirm:
-                st.warning("Please confirm before continuing.")
-            else:
-                result = _verify_email(ld_email_clean)
-                if result is None:
-                    st.error("Email not found. Make sure you've registered first.")
-                else:
-                    _, row = result
-                    current_team = (row.get("team_name") or "").strip()
-                    current_size = (row.get("team_size") or "").strip()
 
-                    if not current_team:
-                        st.warning("You are not currently in a named team.")
-                    elif current_size == _SOLO_LABEL:
-                        ok = _clear_team_fields_for_email(ld_email_clean)
-                        if ok:
-                            st.success(
-                                f"**You left team \"{current_team}\".**"
-                            )
-                        else:
-                            st.error("Something went wrong. Please try again.")
-                    elif current_size in ("2", "3", "4"):
-                        removed = _clear_team_fields_for_team(current_team)
-                        if removed > 0:
-                            st.success(
-                                f"**Team \"{current_team}\" deleted.** "
-                                f"Updated {removed} registration row{'s' if removed != 1 else ''}."
-                            )
-                        else:
-                            st.error("Something went wrong. Please try again.")
-                    else:
-                        st.error("Your registration type is not supported for this action.")
+def _count_people_looking():
+    """Count current registrants looking for a team who have not joined one."""
+    _, rows = _get_all_rows()
+    return sum(
+        1 for r in rows[1:]
+        if (r[6] if len(r) > 6 else "").strip() == _SOLO_LABEL
+        and not (r[5] if len(r) > 5 else "").strip()
+    )
 
-    st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Step 2 & 3: Open Your Team / Join a Team ─────────────────────────────
-    col_open, col_join = st.columns(2, gap="large")
+def _hub_done(message, kind="success"):
+    """Show a message after the next full rerun so all counts and boards refresh."""
+    st.session_state[_HUB_FLASH_KEY] = (kind, message)
+    st.rerun()
 
-    with col_open:
-        st.markdown("""
-        <div class="tf-form-header">
-            <span class="tf-form-icon">\U0001f4e2</span>
-            <span class="tf-form-title">Step 2 &mdash; Open Your Team</span>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("""
-        <div style="margin-bottom:12px;color:var(--text-secondary);font-size:0.9rem;">
-            This step is optional. If you're a solo participant and want to recruit,
-            make your named team public so others can find and join you.
-        </div>
-        """, unsafe_allow_html=True)
 
-        with st.form("open_team_form", clear_on_submit=True):
-            ot_email = st.text_input("Your registered email *", key="ot_email")
-            ot_spots = st.selectbox(
-                "How many people can join?",
-                ["1", "2", "3"],
-                index=0,
-                key="ot_spots",
+def _sign_in_to_team_hub(email: str, student_id: str):
+    result = _verify_email(email)
+    if result is None:
+        return False
+    stored_id = (result[1].get("student_id") or "").strip()
+    # Registrations made before student IDs were collected match on email alone.
+    return not stored_id or stored_id.casefold() == student_id.strip().casefold()
+
+
+def _open_team_cards_html(open_teams):
+    html = '<div class="tf-team-grid">'
+    for name, info in open_teams.items():
+        html += (
+            '<div class="tf-team-card">'
+            f'<div class="tf-team-name">{escape(name)}</div>'
+            f'<div class="tf-team-members">{_plural(info["effective_size"], "member")}</div>'
+            f'<div class="tf-team-spots">{_plural(info["open_spots"], "spot")} open</div>'
+            '</div>'
+        )
+    return html + '</div>'
+
+
+def _render_hub_sign_in():
+    with st.form("team_hub_sign_in"):
+        st.markdown(
+            '<div class="form-title"><h3>Sign in to the Team Hub</h3>'
+            '<p>Use the student email and student ID you registered with.</p></div>',
+            unsafe_allow_html=True,
+        )
+        a, b = st.columns(2)
+        email = a.text_input("Student email", key="hub_email_input")
+        student_id = b.text_input("Student ID", key="hub_id_input")
+        submitted = st.form_submit_button("Continue  ↗", use_container_width=True)
+    if submitted:
+        if not email.strip() or not student_id.strip():
+            st.warning("Please enter both your student email and student ID.")
+        elif _sign_in_to_team_hub(email, student_id):
+            st.session_state[_HUB_IDENTITY_KEY] = email.strip().lower()
+            st.rerun()
+        else:
+            st.error(
+                "We couldn't find a registration with that email and student ID. "
+                "Not registered yet? Use the form above."
             )
-            ot_submitted = st.form_submit_button("Open My Team", use_container_width=True)
 
-            if ot_submitted:
-                ot_email_clean = ot_email.strip()
-                if not ot_email_clean:
-                    st.warning("Please enter your email.")
+
+def _render_find_team(email):
+    st.markdown(
+        '<p class="hub-status">You are not in a team yet. Choose one of the options below.</p>',
+        unsafe_allow_html=True,
+    )
+    join_tab, friend_tab, start_tab = st.tabs(
+        ["Join an open team", "Join a friend's team", "Start a new team"]
+    )
+
+    with join_tab:
+        open_teams = _get_open_teams()
+        if not open_teams:
+            st.info(
+                "No teams are recruiting right now. Start a new team and list it "
+                "so others can find you."
+            )
+        for i, (name, info) in enumerate(open_teams.items()):
+            card, action = st.columns([3, 1], vertical_alignment="center")
+            card.markdown(
+                f'<div class="hub-team-row"><strong>{escape(name)}</strong>'
+                f'<span>{_plural(info["effective_size"], "member")} · '
+                f'{_plural(info["open_spots"], "spot")} open</span></div>',
+                unsafe_allow_html=True,
+            )
+            if action.button("Join", key=f"hub_join_{i}", use_container_width=True):
+                if name not in _get_open_teams():
+                    st.error(f'"{name}" has just filled up or closed. Please pick another team.')
                 else:
-                    result = _verify_email(ot_email_clean)
-                    if result is None:
-                        st.error("Email not found. Make sure you've registered first.")
-                    else:
-                        _, row = result
-                        team_name = (row.get("team_name") or "").strip()
-                        if not team_name:
-                            st.error("You need a team name first. Use **Step 1** above "
-                                     "to set one, then come back here.")
-                        elif (row.get("team_size") or "").strip() in ("2", "3", "4"):
-                            st.error("You registered as a pre-formed team — "
-                                     "this feature is only for solo participants looking for teammates. "
-                                     "Your team is already on the Registered Teams board.")
-                        else:
-                            current_members = len(_get_teammates(team_name)) or 1
-                            max_team_size = min(current_members + int(ot_spots), 4)
-                            if max_team_size <= current_members:
-                                st.error(f"Your team already has {current_members} member{'s' if current_members != 1 else ''} — no room to add more (max team size is 4).")
-                            else:
-                                actual_spots = max_team_size - current_members
-                                _set_open_for_joining(ot_email_clean, "yes")
-                                _set_open_spots(ot_email_clean, max_team_size)
-                                st.success(
-                                    f"**Team \"{team_name}\" is now public** with "
-                                    f"{actual_spots} open spot{'s' if actual_spots != 1 else ''}! "
-                                    "Others can find and join it below."
-                                )
-                                st.balloons()
+                    ok, message = _join_team(email, name)
+                    if ok:
+                        _hub_done(message)
+                    st.error(message)
 
-    with col_join:
-        st.markdown("""
-        <div class="tf-form-header">
-            <span class="tf-form-icon">\U0001f91d</span>
-            <span class="tf-form-title">Step 3 &mdash; Join a Team</span>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("""
-        <div style="margin-bottom:12px;color:var(--text-secondary);font-size:0.9rem;">
-            Browse teams that are looking for members and hop on.
-        </div>
-        """, unsafe_allow_html=True)
+    with friend_tab:
+        with st.form("hub_join_by_name", clear_on_submit=False):
+            st.caption("Ask your friend for their exact team name. Teams can have up to 4 members.")
+            team_name = st.text_input("Team name", key="hub_friend_team")
+            submitted = st.form_submit_button("Join team", use_container_width=True)
+        if submitted:
+            if not team_name.strip():
+                st.warning("Please enter a team name.")
+            else:
+                ok, message = _join_team(email, team_name.strip())
+                if ok:
+                    _hub_done(message)
+                st.error(message)
 
-        with st.form("join_team_form", clear_on_submit=True):
-            jt_email = st.text_input("Your registered email *", key="jt_email")
-            team_choices = list(open_teams.keys()) if open_teams else ["No open teams yet"]
-            jt_team = st.selectbox("Select a team to join", team_choices, key="jt_team")
-            jt_submitted = st.form_submit_button("Join Team", use_container_width=True)
+    with start_tab:
+        with st.form("hub_start_team", clear_on_submit=False):
+            team_name = st.text_input("Team name", key="hub_new_team")
+            a, b = st.columns(2)
+            target_size = a.selectbox(
+                "Target team size", [4, 3, 2], key="hub_new_team_size",
+                format_func=lambda n: f"{n} people",
+            )
+            listed = b.radio(
+                "Visibility", ["Public: others can join", "Private: invite friends by name"],
+                key="hub_new_team_visibility",
+            ).startswith("Public")
+            submitted = st.form_submit_button("Create team", use_container_width=True)
+        if submitted:
+            if not team_name.strip():
+                st.warning("Please enter a team name.")
+            else:
+                ok, message = _start_team(email, team_name.strip(), target_size, listed)
+                if ok:
+                    _hub_done(message)
+                st.error(message)
 
-            if jt_submitted:
-                jt_email_clean = jt_email.strip()
-                if not jt_email_clean:
-                    st.warning("Please enter your email.")
-                elif not open_teams:
-                    st.warning("There are no open teams to join right now.")
-                else:
-                    result = _verify_email(jt_email_clean)
-                    if result is None:
-                        st.error("Email not found. Make sure you've registered first.")
-                    else:
-                        _, row = result
-                        existing = (row.get("team_name") or "").strip()
-                        if existing:
-                            st.error(f"You already have a team name: **{existing}**.")
-                        elif jt_team not in open_teams:
-                            st.error("That team is no longer available.")
-                        else:
-                            ok = _update_team_name(jt_email_clean, jt_team)
-                            if ok:
-                                teammates = _get_teammates(jt_team)
-                                names = [m.get("name", "?") for m in teammates
-                                         if m.get("email", "").strip().lower() != jt_email_clean.lower()]
-                                if names:
-                                    st.success(f"**You joined team \"{jt_team}\"!** "
-                                               f"Your teammates: {', '.join(names)} \U0001f389")
-                                else:
-                                    st.success(f"**You joined team \"{jt_team}\"!** Good luck \U0001f389")
-                            else:
-                                st.error("Something went wrong. Please try again.")
+
+def _render_my_hub_team(email, team_name):
+    members = _get_teammates(team_name)
+    count = len(members)
+    max_size = max(
+        (int(m["open_spots"]) for m in members
+         if (m.get("open_for_joining") or "").strip().lower() == "yes"
+         and (m.get("open_spots") or "").strip().isdigit()),
+        default=0,
+    )
+    is_listed = max_size > count
+    status = (
+        f"Public · {_plural(max_size - count, 'spot')} open" if is_listed
+        else "Full" if count >= _MAX_TEAM_SIZE
+        else "Private · join by exact team name"
+    )
+    roster = "".join(
+        f'<li>{escape(m.get("name", "").strip() or "Registrant")}'
+        f'{" (you)" if m.get("email", "").strip().lower() == email else ""}</li>'
+        for m in members
+    )
+    st.markdown(
+        f'<div class="hub-team-card"><p class="eyebrow">Your team</p>'
+        f'<h3>{escape(team_name)}</h3>'
+        f'<p class="hub-team-meta">{count} of {_MAX_TEAM_SIZE} members · {escape(status)}</p>'
+        f'<ul class="hub-roster">{roster}</ul></div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Team settings"):
+        with st.form("hub_team_settings"):
+            new_name = st.text_input("Team name", value=team_name, key="hub_settings_name")
+            a, b = st.columns(2)
+            size_options = [n for n in (2, 3, 4) if n > count] or [_MAX_TEAM_SIZE]
+            target = a.selectbox(
+                "Target team size", size_options,
+                index=size_options.index(max_size) if max_size in size_options else len(size_options) - 1,
+                format_func=lambda n: f"{n} people", key="hub_settings_size",
+                disabled=count >= _MAX_TEAM_SIZE,
+            )
+            listed = b.radio(
+                "Visibility", ["Public: others can join", "Private: invite friends by name"],
+                index=0 if is_listed else 1, key="hub_settings_visibility",
+                disabled=count >= _MAX_TEAM_SIZE,
+            ).startswith("Public")
+            saved = st.form_submit_button("Save changes", use_container_width=True)
+        if saved:
+            new_name = new_name.strip()
+            if not new_name:
+                st.warning("Team name can't be empty.")
+            elif new_name != team_name and _team_name_taken_by_other_group(new_name, team_name):
+                st.error("That team name is already used by another team.")
+            else:
+                if new_name != team_name:
+                    _rename_team_for_all_members(team_name, new_name)
+                if count < _MAX_TEAM_SIZE:
+                    _set_team_openness(new_name, target if listed else None)
+                _hub_done("Team settings saved.")
+
+    with st.expander("Leave team"):
+        st.caption("You'll go back to looking for a team. Your teammates stay together.")
+        if st.button("Leave this team", key="hub_leave"):
+            if _clear_team_fields_for_email(email):
+                _hub_done(f'You left "{team_name}".')
+            st.error("Something went wrong. Please try again.")
+
+
+def _render_preformed_team(email, me):
+    team_name = (me.get("team_name") or "").strip()
+    size = (me.get("team_size") or "").strip()
+    st.markdown(
+        f'<div class="hub-team-card"><p class="eyebrow">Your registered team</p>'
+        f'<h3>{escape(team_name or "Unnamed team")}</h3>'
+        f'<p class="hub-team-meta">{size} members · registered by you on behalf of the team</p></div>',
+        unsafe_allow_html=True,
+    )
+    with st.form("hub_preformed_name"):
+        new_name = st.text_input("Team name", value=team_name, key="hub_preformed_name_input")
+        saved = st.form_submit_button("Save team name", use_container_width=True)
+    if saved:
+        new_name = new_name.strip()
+        if not new_name:
+            st.warning("Team name can't be empty.")
+        elif _team_name_taken_by_other_group(new_name, team_name):
+            st.error("That team name is already used by another team.")
+        elif team_name:
+            _rename_team_for_all_members(team_name, new_name)
+            _hub_done(f'Team renamed to "{new_name}".')
+        elif _update_team_name(email, new_name):
+            _hub_done(f'Team name set to "{new_name}".')
+        else:
+            st.error("Something went wrong. Please try again.")
+
+    if team_name:
+        with st.expander("Remove team from the board"):
+            st.caption(
+                "Your registration stays on the early-interest list, but the team "
+                "name is removed and it no longer appears on the public board."
+            )
+            if st.button("Remove team", key="hub_remove_preformed"):
+                _clear_team_fields_for_team(team_name)
+                _hub_done(f'Team "{team_name}" removed from the board.')
+
+
+def _render_team_hub():
+    flash = st.session_state.pop(_HUB_FLASH_KEY, None)
+    if flash:
+        getattr(st, flash[0])(flash[1])
+
+    email = st.session_state.get(_HUB_IDENTITY_KEY)
+    result = _verify_email(email) if email else None
+    if result is None:
+        st.session_state.pop(_HUB_IDENTITY_KEY, None)
+        open_teams = _get_open_teams()
+        looking = _count_people_looking()
+        st.markdown(
+            f'<p class="hub-status">{_plural(len(open_teams), "team")} recruiting · '
+            f'{looking} {"person" if looking == 1 else "people"} looking for a team</p>',
+            unsafe_allow_html=True,
+        )
+        if open_teams:
+            st.markdown(_open_team_cards_html(open_teams), unsafe_allow_html=True)
+        _render_hub_sign_in()
+        return
+
+    _, me = result
+    first_name = (me.get("name") or "").strip().split(" ")[0]
+    greeting, sign_out = st.columns([4, 1], vertical_alignment="center")
+    greeting.markdown(
+        f'<p class="hub-greeting">Signed in as <strong>{escape(first_name or email)}</strong></p>',
+        unsafe_allow_html=True,
+    )
+    if sign_out.button("Sign out", key="hub_sign_out", use_container_width=True):
+        st.session_state.pop(_HUB_IDENTITY_KEY, None)
+        st.rerun()
+
+    team_name = (me.get("team_name") or "").strip()
+    if (me.get("team_size") or "").strip() in ("2", "3", "4"):
+        _render_preformed_team(email, me)
+    elif team_name:
+        _render_my_hub_team(email, team_name)
+    else:
+        _render_find_team(email)
+
+
+@st.fragment
+def render_team_formation():
+    st.markdown('<div id="find-team"></div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+<div class="section-heading"><p class="eyebrow">Team Hub</p>
+<h2>Find your team.</h2>
+<p class="section-description">Sign in once with your registration details, then join a team
+that is recruiting, join a friend's team by name, or start your own.</p></div>
+<div class="hub-steps">
+    <div><span>01</span><p><strong>Sign in</strong><br>Student email and student ID.</p></div>
+    <div><span>02</span><p><strong>Join or start</strong><br>Open teams, friends' teams or your own.</p></div>
+    <div><span>03</span><p><strong>Manage anytime</strong><br>Rename, recruit, or leave.</p></div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    with st.container(key="team_hub"):
+        try:
+            _render_team_hub()
+        except STORAGE_ERRORS:
+            st.error("The Team Hub cannot reach registration storage. Please try again later.")
 
 
 def render_registered_teams():
     """Showcase all teams that have a name."""
-    st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("""
-    <div style="text-align:center;margin-bottom:40px;">
-            <div class="section-tag">Early interest</div>
-            <div class="section-title">Teams interested</div>
-        <div class="section-subtitle" style="margin:0 auto;">
-                These teams have registered interest. Ticket details will follow by email.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="section-heading board-heading"><p class="eyebrow">Early interest</p>
+<h2>Teams interested.</h2>
+<p class="section-description">These teams have registered interest. Ticket details will follow by email.</p></div>
+""", unsafe_allow_html=True)
 
     all_teams = _get_all_named_teams()
 
