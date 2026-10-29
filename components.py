@@ -852,7 +852,7 @@ def render_registration():
         st.markdown("""
 <div class="registration-intro">
     <p class="eyebrow"><span class="status-dot"></span> 05 / Early interest open</p>
-    <h2>Join the<br>early-interest<br>list.</h2>
+    <h2>Join the <br>early-interest <br>list.</h2>
     <p>This is not a ticket purchase. We’ll email you when tickets go on sale.</p>
     <div class="registration-facts">
         <div><span>01</span><p><strong>Early interest only</strong><br>No ticket or payment is required now.</p></div>
@@ -889,16 +889,16 @@ def render_registration():
                         unsafe_allow_html=True)
             st.markdown('<p class="form-section-label">01 / Your details</p>', unsafe_allow_html=True)
             a, b = st.columns(2)
-            with a:
-                reg_name = st.text_input("Full name *", placeholder="First and last name", key="signup_name")
-                reg_student_email = st.text_input("Student email *", placeholder="you@university.ac.uk", key="signup_email")
-                reg_uni = st.text_input("University *", placeholder="Your university", key="signup_university")
-            with b:
-                reg_student_id = st.text_input("Student ID *", placeholder="Your student number", key="signup_id")
-                reg_degree = st.text_input("Degree / subject", placeholder="e.g. Computer Science", key="signup_degree")
-                reg_experience = st.selectbox(
-                    "ML experience", ["Beginner", "Intermediate", "Advanced", "Expert"], key="signup_experience"
-                )
+            reg_name = a.text_input("Full name *", placeholder="First and last name", key="signup_name")
+            reg_student_email = b.text_input("Student email *", placeholder="you@university.ac.uk", key="signup_email")
+            a, b = st.columns(2)
+            reg_student_id = a.text_input("Student ID *", placeholder="Your student number", key="signup_id")
+            reg_uni = b.text_input("University *", placeholder="Your university", key="signup_university")
+            a, b = st.columns(2)
+            reg_degree = a.text_input("Degree / subject", placeholder="e.g. Computer Science", key="signup_degree")
+            reg_experience = b.selectbox(
+                "ML experience", ["Beginner", "Intermediate", "Advanced", "Expert"], key="signup_experience"
+            )
             st.markdown('<p class="form-section-label">02 / Your team</p>', unsafe_allow_html=True)
             a, b = st.columns(2)
             with a:
@@ -908,8 +908,9 @@ def render_registration():
                     key="signup_team_size",
                 )
             with b:
-                reg_team = st.text_input("Team name", placeholder="Leave blank if looking", key="signup_team")
-            st.caption("For an existing team, one person registers on behalf of the group. Team name is required.")
+                reg_team = st.text_input("Team name", placeholder="Only if you have a team", key="signup_team")
+            st.caption("Registering a team? One person signs up for the whole group and enters the team name. "
+                       "On your own? Choose “Looking for a team” and leave the name blank.")
             with st.expander("Anything else? (optional)"):
                 reg_interest = st.text_area("A note for the organisers", key="signup_note", height=80)
             submitted = st.form_submit_button(
@@ -1100,14 +1101,14 @@ def _render_find_team(email):
         unsafe_allow_html=True,
     )
     join_tab, friend_tab, start_tab = st.tabs(
-        ["Join an open team", "Join a friend's team", "Start a new team"]
+        ["Open teams", "Friend's team", "Start a team"]
     )
 
     with join_tab:
         open_teams = _get_open_teams()
         if not open_teams:
             st.info(
-                "No teams are recruiting right now. Start a new team and list it "
+                "No teams are recruiting right now. Use “Start a team” and make it public "
                 "so others can find you."
             )
         for i, (name, info) in enumerate(open_teams.items()):
@@ -1365,7 +1366,7 @@ def render_registered_teams():
             f'<div class="rt-card" style="border-color:{border};">'
             f'<div class="rt-accent-bar" style="background:linear-gradient(90deg,{accent},{border});"></div>'
             f'<div class="rt-name" style="color:{accent};">{escape(name)}</div>'
-            f'<div class="rt-members">\U0001f465 {size} member{"s" if size != 1 else ""}</div>'
+            f'<div class="rt-members">{size} member{"s" if size != 1 else ""}</div>'
             f'</div>'
         )
     html += '</div>'

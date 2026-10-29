@@ -27,7 +27,7 @@ def render_hero():
     <a class="brand" href="#top"><span class="brand-mark">QMML<span>/</span></span>
     <span class="brand-caption">Machine Learning Society<br>Queen Mary University of London</span></a>
     <div class="nav-links"><a href="#challenge">The challenge</a><a href="#how-it-works">How it works</a>
-    <a href="#prizes">Prizes</a><a class="nav-cta" href="#register">Register interest <span aria-hidden="true">↗</span></a></div>
+    <a href="#prizes">Prizes</a><a href="#team-hub">Find a team</a><a class="nav-cta" href="#register">Register interest <span aria-hidden="true">↗</span></a></div>
 </nav>
 <section class="hero" id="top" aria-label="AI Market-Making Hackathon 2026">
     <div class="hero-copy">
@@ -65,10 +65,10 @@ def render_stats():
     st.markdown(
         f"""
 <section class="detail-strip" aria-label="Participation at a glance">
-    <div><span class="eyebrow">01 / Teams registered</span><strong>{escape(team_label)}</strong></div>
-    <div><span class="eyebrow">02 / People represented</span><strong>{escape(member_label)}</strong></div>
-    <div><span class="eyebrow">03 / Prize pot</span><strong><a href="#prizes">{_prize_pot_label()} and growing</a></strong></div>
-    <div><span class="eyebrow">04 / Tickets</span><strong>We’ll email you when they go on sale</strong></div>
+    <div><span class="eyebrow">01 / Teams registered</span><strong class="stat-value">{escape(team_label)}</strong></div>
+    <div><span class="eyebrow">02 / People represented</span><strong class="stat-value">{escape(member_label)}</strong></div>
+    <div><span class="eyebrow">03 / Prize pot</span><strong class="stat-value"><a href="#prizes">{_prize_pot_label()}</a></strong><span class="stat-note">and growing</span></div>
+    <div><span class="eyebrow">04 / Tickets</span><strong>Coming soon</strong><span class="stat-note">We’ll email you when they go on sale</span></div>
 </section>
 """, unsafe_allow_html=True,
     )
@@ -107,8 +107,8 @@ def render_timeline():
         ("Refine", "Adjust predictions and spreads as results become available. Performance follows the event's specified metrics."),
     ]
     cards = "".join(
-        f'<article class="process-step"><span class="step-number">0{i}</span>'
-        f'<h3>{escape(title)}</h3><p>{escape(body)}</p></article>'
+        f'<article class="process-step"><div class="step-head"><span class="step-number">0{i}</span>'
+        f'<h3>{escape(title)}</h3></div><p>{escape(body)}</p></article>'
         for i, (title, body) in enumerate(stages, 1)
     )
     st.markdown(
@@ -498,7 +498,7 @@ def render_quote_lab():
                 '<span>Both roles run for six rounds.</span></div>',
                 unsafe_allow_html=True,
             )
-            trader_col, maker_col = st.columns(2)
+            trader_col, maker_col = st.container(key="quote_lab_roles").columns(2)
             with trader_col:
                 st.markdown(
                     '<div class="game-role-card"><span>01 / TRADER</span>'
@@ -536,7 +536,7 @@ def render_who():
     <div><p class="eyebrow">03 / Made for curious minds</p><h2>You bring the model.<br>Bring your team, too.</h2></div>
     <div><p>Open to university students across universities. A working knowledge of Python
     and machine learning is a great starting point. Finance experience isn't required.</p>
-    <p>Already have a team? One representative can register your group of 2–4.
+    <p>Already have a team? One representative can register your group of 2&nbsp;to&nbsp;4.
     Coming on your own? Register as looking for teammates and use the Team Hub.</p></div>
 </section>
 """, unsafe_allow_html=True,

@@ -42,6 +42,7 @@ render_who()
 render_prizes()
 render_registration()
 if EVENT_CONFIG["registration_open"]:
+    st.markdown('<div id="team-hub"></div>', unsafe_allow_html=True)
     if st.toggle("Already registered? Find or manage your team", key="show_team_hub"):
         from sheets_store import STORAGE_ERRORS
 
