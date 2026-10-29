@@ -13,6 +13,14 @@ EVENT_CONFIG = {
     "round_count_max": 10,
     "status": "registration open",
     "registration_open": True,
-    "prize_details": "Prize details to be announced",
+    # Current pot in GBP. All ticket revenue is added to it; shown as "£N+".
+    "prize_pot_gbp": 300,
+    "prize_categories": (
+        ("Best overall P&L", ("1st place", "2nd place", "3rd place")),
+        ("Best Sortino ratio", ("1st place", "2nd place", "3rd place")),
+        ("Special awards", (
+            "Best undergraduate team", "Best postgraduate team", "Random team prize",
+        )),
+    ),
     "partners": ("BCG", "CIRQL", "ENCODE"),
 }

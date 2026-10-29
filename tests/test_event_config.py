@@ -170,9 +170,74 @@ class EventConfigTests(unittest.TestCase):
         active_content = "\n".join(
             path.read_text(encoding="utf-8") for path in active_files
         )
-        for stale_text in ("£300", "Alpha Traders", "MAR 25", "APR 1"):
+        for stale_text in ("Alpha Traders", "MAR 25", "APR 1"):
             with self.subTest(stale_text=stale_text):
                 self.assertNotIn(stale_text, active_content)
+
+    def test_prize_pot_is_shown_as_growing_total_without_per_prize_amounts(self):
+        from event_sections import _prize_pot_label
+
+        self.assertEqual(_prize_pot_label(), "£300+")
+        awards = [a for _, group in EVENT_CONFIG["prize_categories"] for a in group]
+        self.assertEqual(len(awards), 9)
+        self.assertFalse(any("£" in award for award in awards))
+
+
+class TeamHubTests(unittest.TestCase):
+    def _register(self, email, student_id, team_name="", team_size="1 (looking for a team)"):
+        components._save_registration(
+            email.split("@")[0], student_id, email, "QMUL", "CS",
+            team_name, team_size, "Beginner", "",
+        )
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.store = CSVRegistrationStore(Path(self._dir.name) / "registrations.csv")
+        patcher = patch.object(components, "_get_registration_store", return_value=self.store)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(self._dir.cleanup)
+
+    def test_sign_in_requires_matching_student_id(self):
+        self._register("a@example.edu", "QM1")
+        self.assertTrue(components._sign_in_to_team_hub("A@example.edu", "qm1"))
+        self.assertFalse(components._sign_in_to_team_hub("a@example.edu", "QM2"))
+        self.assertFalse(components._sign_in_to_team_hub("x@example.edu", "QM1"))
+
+    def test_start_public_team_then_others_join_until_full(self):
+        for i in range(5):
+            self._register(f"p{i}@example.edu", f"QM{i}")
+        ok, _ = components._start_team("p0@example.edu", "Spread Eagles", 3, listed=True)
+        self.assertTrue(ok)
+        self.assertEqual(components._get_open_teams()["Spread Eagles"]["open_spots"], 2)
+
+        ok, message = components._join_team("p1@example.edu", "spread eagles")
+        self.assertTrue(ok)
+        self.assertIn("p0", message)
+        self.assertTrue(components._join_team("p2@example.edu", "Spread Eagles")[0])
+        self.assertNotIn("Spread Eagles", components._get_open_teams())
+
+        # Friends can still join by name up to the hard cap of four.
+        self.assertTrue(components._join_team("p3@example.edu", "Spread Eagles")[0])
+        ok, message = components._join_team("p4@example.edu", "Spread Eagles")
+        self.assertFalse(ok)
+        self.assertIn("full", message)
+
+    def test_private_team_is_not_listed_and_can_be_opened_later(self):
+        self._register("a@example.edu", "QM1")
+        self.assertTrue(components._start_team("a@example.edu", "Quiet", 4, listed=False)[0])
+        self.assertEqual(components._get_open_teams(), {})
+        components._set_team_openness("Quiet", 4)
+        self.assertEqual(components._get_open_teams()["Quiet"]["open_spots"], 3)
+        components._set_team_openness("Quiet", None)
+        self.assertEqual(components._get_open_teams(), {})
+
+    def test_preformed_teams_and_taken_names_cannot_be_joined_or_reused(self):
+        self._register("lead@example.edu", "QM1", "Preformed", "3")
+        self._register("solo@example.edu", "QM2")
+        self.assertFalse(components._join_team("solo@example.edu", "Preformed")[0])
+        self.assertFalse(components._start_team("solo@example.edu", "preformed", 4, True)[0])
+        self.assertEqual(components._count_people_looking(), 1)
 
 
 if __name__ == "__main__":

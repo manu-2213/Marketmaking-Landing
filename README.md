@@ -49,7 +49,9 @@ Do not publish the spreadsheet or a participant export.
 - The previous local CSV utility is retained for existing files/tests, but the
   website no longer uses it. No local CSVs are automatically uploaded or deleted.
 
-The Team Hub retains its original email-based identification flow; it does not
+The Team Hub asks for the registered student email and student ID once, then shows
+only the options that fit: join an open team, join a friend's team by exact name,
+start a public or private team, or manage/leave the current one. It does not
 verify email ownership. Plan stronger authentication before relying on it for
 sensitive team administration. Spreadsheet writes are not transactional across
 multiple app replicas; run a single app instance for this workflow.
