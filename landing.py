@@ -28,6 +28,8 @@ from event_sections import (
     render_quote_lab,
     render_who,
     render_prizes,
+    render_tickets,
+    render_team_matching,
     render_partners,
     render_footer,
 )
@@ -40,9 +42,11 @@ render_timeline()
 render_quote_lab()
 render_who()
 render_prizes()
+render_tickets()
 render_registration()
 if EVENT_CONFIG["registration_open"]:
     st.markdown('<div id="team-hub"></div>', unsafe_allow_html=True)
+    render_team_matching()
     if st.toggle("Already registered? Find or manage your team", key="show_team_hub"):
         from sheets_store import STORAGE_ERRORS
 

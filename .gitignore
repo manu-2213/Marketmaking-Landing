@@ -5,3 +5,4 @@ __pycache__/
 .env
 registrations.csv
 send_team_emails.py
+send_queue/

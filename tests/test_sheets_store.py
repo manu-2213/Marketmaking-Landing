@@ -10,15 +10,19 @@ from sheets_store import RegistrationStorageError, SheetsRegistrationStore
 def registration(email="student@example.edu", team="Test Team", size="2"):
     return [
         "2026-10-27", "Test Student", email, "Example University", "Computing",
-        team, size, "Intermediate", "", "", "", "STUDENT-01",
+        team, size, "Intermediate", "", "", "", "STUDENT-01", "Undergraduate", "",
     ]
+
+
+# Columns as they were before student IDs were collected.
+LEGACY = 11
 
 
 class SheetsStoreTests(unittest.TestCase):
     def test_legacy_rows_are_not_shown_or_modified_during_read(self):
         worksheet = Mock()
         worksheet.get_all_values.return_value = [
-            list(REGISTRATION_HEADERS[:-1]), registration()[:-1],
+            list(REGISTRATION_HEADERS[:LEGACY]), registration()[:LEGACY],
         ]
         store = SheetsRegistrationStore(worksheet)
         self.assertEqual(store.get_all_values(), [list(REGISTRATION_HEADERS)])
@@ -27,8 +31,8 @@ class SheetsStoreTests(unittest.TestCase):
 
     def test_appending_preserves_existing_columns_and_uses_raw_values(self):
         worksheet = Mock(col_count=11)
-        header = list(REGISTRATION_HEADERS[:-1]) + ["organiser_note"]
-        worksheet.get_all_values.return_value = [header, registration()[:-1] + ["retain"]]
+        header = list(REGISTRATION_HEADERS[:LEGACY]) + ["organiser_note"]
+        worksheet.get_all_values.return_value = [header, registration()[:LEGACY] + ["retain"]]
         store = SheetsRegistrationStore(worksheet)
         values = registration(team="=not_a_formula", size="1 (looking for a team)")
         store.append_row(values)
@@ -41,6 +45,7 @@ class SheetsStoreTests(unittest.TestCase):
         self.assertEqual(saved["team_name"], "=not_a_formula")
         self.assertEqual(saved["event_id"], "qmml-2026-november")
         self.assertEqual(saved["looking_for_team"], "yes")
+        self.assertEqual(saved["study_level"], "Undergraduate")
         self.assertEqual(saved["organiser_note"], "")
         self.assertEqual(worksheet.append_row.call_args.kwargs["value_input_option"], "RAW")
 
@@ -58,6 +63,22 @@ class SheetsStoreTests(unittest.TestCase):
         worksheet.update.assert_called_once_with(
             range_name="F3", values=[["New name"]], value_input_option="RAW"
         )
+
+    def test_update_adds_a_new_column_to_the_header_only(self):
+        worksheet = Mock(col_count=13)
+        header = list(REGISTRATION_HEADERS[:12]) + ["event_id"]
+        worksheet.get_all_values.return_value = [
+            header, registration()[:12] + ["qmml-2026-november"],
+        ]
+        store = SheetsRegistrationStore(worksheet)
+        store.update_cell(2, REGISTRATION_HEADERS.index("study_level") + 1, "Postgraduate")
+        header_write, cell_write = worksheet.update.call_args_list
+        self.assertEqual(header_write.kwargs["range_name"], "A1")
+        self.assertEqual(header_write.kwargs["values"][0][:len(header)], header)
+        extended = header_write.kwargs["values"][0]
+        column = chr(ord("A") + extended.index("study_level"))
+        self.assertEqual(cell_write.kwargs["range_name"], f"{column}2")
+        self.assertEqual(cell_write.kwargs["values"], [["Postgraduate"]])
 
     def test_storage_errors_do_not_fall_back_to_csv(self):
         worksheet = Mock()
@@ -108,6 +129,7 @@ class RegistrationFormTests(unittest.TestCase):
         }.items():
             app.text_input(key=key).set_value(value)
         app.selectbox(key="signup_team_size").select(team_size)
+        app.selectbox(key="signup_level").select("Undergraduate")
         return app
 
     def test_individual_registration_reaches_account_store(self):
@@ -121,6 +143,24 @@ class RegistrationFormTests(unittest.TestCase):
         self.assertEqual(saved[2], "student@example.edu")
         self.assertEqual(saved[6], "1 (looking for a team)")
         self.assertEqual(saved[11], "STUDENT-01")
+        self.assertEqual(saved[12:14], ["Undergraduate", "yes"])
+
+    def test_level_of_study_is_required(self):
+        store = Mock()
+        store.get_all_values.return_value = [list(REGISTRATION_HEADERS)]
+        app = self.fill(self.app(store))
+        app.selectbox(key="signup_level").set_value(None)
+        app.button[0].click().run()
+        self.assertIn("level of study", app.warning[0].value)
+        store.append_row.assert_not_called()
+
+    def test_opting_out_of_matching_is_saved(self):
+        store = Mock()
+        store.get_all_values.return_value = [list(REGISTRATION_HEADERS)]
+        app = self.fill(self.app(store))
+        app.checkbox(key="signup_auto_match").uncheck()
+        app.button[0].click().run()
+        self.assertEqual(store.append_row.call_args.args[0][13], "no")
 
     def test_team_requires_name_and_retains_input_after_validation(self):
         store = Mock()
@@ -133,7 +173,9 @@ class RegistrationFormTests(unittest.TestCase):
         app.text_input(key="signup_team").set_value("Example Makers")
         app.button[0].click().run()
         self.assertEqual(len(app.success), 1)
-        self.assertEqual(store.append_row.call_args.args[0][5:7], ["Example Makers", "3"])
+        saved = store.append_row.call_args.args[0]
+        self.assertEqual(saved[5:7], ["Example Makers", "3"])
+        self.assertEqual(saved[13], "")  # matching only applies to people looking for a team
 
     def test_failed_remote_write_is_not_reported_as_success(self):
         store = Mock()

@@ -79,6 +79,17 @@ class SheetsRegistrationStore:
         if len(values) != len(REGISTRATION_HEADERS):
             raise RegistrationStorageError("Unexpected registration field count.")
         header, _ = self._read()
+        extended = self._ensure_columns(header)
+        record = dict(zip(REGISTRATION_HEADERS, values))
+        record["event_id"] = self.event_id
+        record["looking_for_team"] = (
+            "yes" if record["team_size"] == "1 (looking for a team)" else "no"
+        )
+        self.worksheet.append_row(
+            [record.get(name, "") for name in extended], value_input_option="RAW"
+        )
+
+    def _ensure_columns(self, header):
         required = (*REGISTRATION_HEADERS, "event_id", "looking_for_team")
         extended = header + [name for name in required if name not in header]
         if extended != header:
@@ -88,14 +99,7 @@ class SheetsRegistrationStore:
             self.worksheet.update(
                 range_name="A1", values=[extended], value_input_option="RAW"
             )
-        record = dict(zip(REGISTRATION_HEADERS, values))
-        record["event_id"] = self.event_id
-        record["looking_for_team"] = (
-            "yes" if record["team_size"] == "1 (looking for a team)" else "no"
-        )
-        self.worksheet.append_row(
-            [record.get(name, "") for name in extended], value_input_option="RAW"
-        )
+        return extended
 
     def update_cell(self, row_number, column_number, value):
         header, rows = self._read()
@@ -106,7 +110,8 @@ class SheetsRegistrationStore:
             raise RegistrationStorageError("Unexpected registration column.")
         field = REGISTRATION_HEADERS[column_number - 1]
         if field not in header:
-            raise RegistrationStorageError("Registration column is missing.")
+            # Columns added after launch (e.g. study_level) appear on first use.
+            header = self._ensure_columns(header)
         actual_row = current[row_number - 2][0]
         self.worksheet.update(
             range_name=gspread.utils.rowcol_to_a1(actual_row, header.index(field) + 1),

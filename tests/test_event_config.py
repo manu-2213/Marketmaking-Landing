@@ -174,6 +174,19 @@ class EventConfigTests(unittest.TestCase):
             with self.subTest(stale_text=stale_text):
                 self.assertNotIn(stale_text, active_content)
 
+    def test_ticket_guidance_points_to_qmsu_and_stale_copy_is_gone(self):
+        self.assertEqual(EVENT_CONFIG["tickets_url"], "https://www.qmsu.org/groups/qmml/")
+        self.assertEqual(len(EVENT_CONFIG["ticket_options"]), 4)
+        root = Path(__file__).parents[1]
+        active = "\n".join(
+            (root / name).read_text(encoding="utf-8")
+            for name in ("event_sections.py", "components.py")
+        ).split("def render_registration")
+        registration_and_sections = active[0].split("# ── Sections")[0] + active[1]
+        for stale in ("early-interest", "not a ticket purchase", "when tickets go on sale"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, registration_and_sections)
+
     def test_prize_pot_is_shown_as_growing_total_without_per_prize_amounts(self):
         from event_sections import _prize_pot_label
 
@@ -231,6 +244,16 @@ class TeamHubTests(unittest.TestCase):
         self.assertEqual(components._get_open_teams()["Quiet"]["open_spots"], 3)
         components._set_team_openness("Quiet", None)
         self.assertEqual(components._get_open_teams(), {})
+
+    def test_matching_defaults_on_and_opt_out_is_stored(self):
+        self._register("a@example.edu", "QM1")
+        _, record = components._verify_email("a@example.edu")
+        self.assertTrue(components._wants_auto_match(record))
+        self.assertTrue(components._set_registrant_field("a@example.edu", "auto_match", "no"))
+        self.assertTrue(components._set_registrant_field("a@example.edu", "study_level", "Postgraduate"))
+        _, record = components._verify_email("a@example.edu")
+        self.assertFalse(components._wants_auto_match(record))
+        self.assertEqual(record["study_level"], "Postgraduate")
 
     def test_preformed_teams_and_taken_names_cannot_be_joined_or_reused(self):
         self._register("lead@example.edu", "QM1", "Preformed", "3")

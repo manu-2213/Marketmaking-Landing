@@ -11,6 +11,7 @@ Requirements:
   • Run from the 'landing website' directory so it can find .streamlit/secrets.toml
 """
 
+import os
 import sys
 import csv
 import smtplib
@@ -27,7 +28,7 @@ from google.oauth2.service_account import Credentials
 SMTP_HOST      = "smtp.gmail.com"
 SMTP_PORT      = 587
 SENDER_EMAIL   = "manuel.teres356356@gmail.com"
-SENDER_PASSWORD = "REMOVED"
+SENDER_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 SENDER_NAME    = "QMUL AI Hackathon"
 
 STREAMLIT_BASE_URL = "https://market-making-qmml.streamlit.app"

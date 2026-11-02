@@ -297,6 +297,24 @@ h1, h2, h3, p { overflow-wrap: break-word; }
 .st-key-team_hub { margin-bottom: 40px; }
 .st-key-team_hub [data-testid="stTab"] p { font-size: 14px; font-weight: 600; }
 .board-heading { margin-top: 20px; }
+.ticket-layout { display: grid; grid-template-columns: 1fr 1.25fr; gap: 40px; margin-bottom: 86px; }
+.ticket-steps .button { margin-top: 18px; }
+.ticket-layout .eyebrow { margin-bottom: 14px; }
+.ticket-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ticket-card { padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.ticket-who { display: block; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; line-height: 1.4; min-height: 34px; }
+.ticket-card h3 { font-size: var(--fs-lg) !important; font-weight: 600; margin: 8px 0 6px; padding: 0; }
+.ticket-card p { color: var(--text-secondary); font-size: var(--fs-sm) !important; line-height: 1.5; margin: 0; }
+.match-card { display: grid; grid-template-columns: .9fr 1.4fr; gap: 48px; padding: 32px; margin: 16px 0 20px; background: linear-gradient(160deg, #16263e, #101823 70%); border: 1px solid #34465e; border-radius: 10px; }
+.match-card .eyebrow { margin-bottom: 14px; }
+.match-card h3 { font-size: 26px !important; font-weight: 700; letter-spacing: -.03em; line-height: var(--lh-tight); margin: 0 0 14px; padding: 0; }
+.match-card > div > p:not(.eyebrow) { color: var(--text-secondary); font-size: var(--fs-base) !important; line-height: var(--lh-body); margin: 0; }
+.match-steps { list-style: none; counter-reset: match; padding: 0; margin: 0; }
+.match-steps li { counter-increment: match; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; padding: 12px 0; margin: 0; border-top: 1px solid var(--border); }
+.match-steps li:first-child { border-top: 0; padding-top: 0; }
+.match-steps li::before { content: counter(match, decimal-leading-zero); grid-row: span 2; color: var(--accent); font-size: var(--fs-xs); font-weight: 600; padding-top: 3px; }
+.match-steps strong { color: var(--text); font-size: 15px; font-weight: 600; }
+.match-steps span { color: var(--text-secondary); font-size: var(--fs-sm); line-height: 1.55; }
 .tf-team-grid { margin-bottom: 20px; }
 .partners-section { padding: 50px 0; text-align: center; }
 .partners-list { display: flex; gap: 70px; justify-content: center; margin: 26px 0; }
@@ -322,7 +340,7 @@ h1, h2, h3, p { overflow-wrap: break-word; }
     .detail-strip > div:nth-child(2) { border-right: 0; }
     .detail-strip > div:nth-child(3) { padding-left: 0; }
     .detail-strip > div:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
-    .prize-layout { grid-template-columns: 1fr; }
+    .prize-layout, .ticket-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
     :root { --fs-lg: 17px; }
@@ -406,6 +424,12 @@ h1, h2, h3, p { overflow-wrap: break-word; }
     .form-title h3 { font-size: 20px !important; }
 
     .hub-steps { gap: 0; }
+    .ticket-layout { gap: 24px; margin-bottom: 56px; }
+    .ticket-grid { grid-template-columns: 1fr; }
+    .ticket-who { min-height: 0; }
+    .ticket-steps .button { display: flex; justify-content: center; }
+    .match-card { grid-template-columns: 1fr; gap: 22px; padding: 22px 18px; }
+    .match-card h3 { font-size: 22px !important; }
     .hub-steps > div { padding: 12px 0; }
     .hub-team-card { padding: 18px; }
     .hub-team-card h3 { font-size: 22px !important; }

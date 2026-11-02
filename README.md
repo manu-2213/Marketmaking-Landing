@@ -31,10 +31,17 @@ Do not publish the spreadsheet or a participant export.
 
 - The site shows aggregate counts of registered teams and represented people.
   Declared team sizes count all team members; solo registrants count as one person,
-  and people who form a named team are counted once. This is an early-interest
-  list, not a ticket purchase; registrants will be emailed when tickets go on sale.
+  and people who form a named team are counted once. Registration does not include
+  a ticket: every team member buys one on QMSU (`tickets_url` and `ticket_options`
+  in event_config.py).
 - New records include name, student email (`email`), student ID (`student_id`),
   university, degree, team name/size, ML experience and an optional note.
+- `study_level` (Undergraduate/Postgraduate) is required on the form; people who
+  registered earlier are asked for it when they sign in to the Team Hub.
+- `auto_match` records the matching choice for people looking for a team. Blank or
+  `yes` means "match me after `team_match_deadline`" (set in event_config.py); `no`
+  means they opted out. The site announces the matching policy; the matching itself
+  is done by the organisers after the deadline.
 - `looking_for_team` is explicitly stored; the Team Hub also uses the existing
   `team_size`, `open_for_joining` and `open_spots` fields.
 - The first successful registration adds any missing columns to the header,

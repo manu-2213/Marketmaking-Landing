@@ -16,8 +16,11 @@ def _get_registration_store():
     return get_registration_store()
 
 
+_STUDY_LEVELS = ("Undergraduate", "Postgraduate")
+
+
 def _save_registration(name, student_id, email, university, degree, team_name,
-                        team_size, experience, interest):
+                        team_size, experience, interest, study_level="", auto_match=""):
     """Save a registration to the organiser's Google Sheet."""
     ws = _get_registration_store()
     ws.append_row([
@@ -27,6 +30,8 @@ def _save_registration(name, student_id, email, university, degree, team_name,
         "",  # open_for_joining — empty by default
         "",  # open_spots — empty by default
         student_id,
+        study_level,
+        auto_match,
     ])
 
 
@@ -157,6 +162,24 @@ def _set_open_for_joining(email: str, value: str = "yes"):
             ws.update_cell(idx, col, value)
             return True
     return False
+
+
+def _set_registrant_field(email: str, field: str, value: str):
+    """Set one field on a registrant's row, identified by email."""
+    ws, rows = _get_all_rows()
+    if len(rows) <= 1:
+        return False
+    col = _col_index(rows[0], field)
+    for idx, r in enumerate(rows[1:], start=2):
+        if len(r) > 2 and r[2].strip().lower() == email.strip().lower():
+            ws.update_cell(idx, col, value)
+            return True
+    return False
+
+
+def _wants_auto_match(record: dict) -> bool:
+    """Registrants are matched unless they explicitly opted out."""
+    return (record.get("auto_match") or "").strip().lower() != "no"
 
 
 def _set_open_spots(email: str, max_team_size: int):
@@ -851,13 +874,13 @@ def render_registration():
     with info:
         st.markdown("""
 <div class="registration-intro">
-    <p class="eyebrow"><span class="status-dot"></span> 05 / Early interest open</p>
-    <h2>Join the <br>early-interest <br>list.</h2>
-    <p>This is not a ticket purchase. We’ll email you when tickets go on sale.</p>
+    <p class="eyebrow"><span class="status-dot"></span> 06 / Registration open</p>
+    <h2>Register <br>your team.</h2>
+    <p>This is step one. Once you’re registered, everyone on the team buys a ticket on the QMSU website.</p>
     <div class="registration-facts">
-        <div><span>01</span><p><strong>Early interest only</strong><br>No ticket or payment is required now.</p></div>
-        <div><span>02</span><p><strong>Ticket updates by email</strong><br>We’ll contact you when tickets are released.</p></div>
-        <div><span>03</span><p><strong>Team or solo</strong><br>Register your team or look for teammates.</p></div>
+        <div><span>01</span><p><strong>One registration per team</strong><br>One person registers the whole team.</p></div>
+        <div><span>02</span><p><strong>Everyone needs a ticket</strong><br>Each team member pays individually on QMSU.</p></div>
+        <div><span>03</span><p><strong>Team or solo</strong><br>Register your team, or come alone and we’ll help you find one.</p></div>
     </div>
     <p class="privacy-note">Student IDs and email addresses are kept private.
     Only team names and team sizes appear on the public board.</p>
@@ -866,9 +889,9 @@ def render_registration():
     with form_column:
         if st.session_state.get("registration_saved_2026"):
             st.success(
-                "You're on the early-interest list. We'll email you when tickets are released."
+                "You're registered. Next step: everyone on your team buys a ticket on the QMSU website."
             )
-            st.write("Your details have been saved to the organiser's Google Sheet.")
+            st.link_button("Get tickets on QMSU  ↗", EVENT_CONFIG["tickets_url"], type="primary")
             if st.session_state.get(_HUB_IDENTITY_KEY):
                 st.button(
                     "Find teammates in the Team Hub  ↓", key="open_team_hub", type="primary",
@@ -884,8 +907,8 @@ def render_registration():
             return
 
         with st.form("registration_form", clear_on_submit=False):
-            st.markdown('<div class="form-title"><h3>Register your interest</h3>'
-                        '<p>This is not a ticket purchase. Required fields are marked with an asterisk.</p></div>',
+            st.markdown('<div class="form-title"><h3>Register</h3>'
+                        '<p>Required fields are marked with an asterisk. Tickets are bought separately on QMSU.</p></div>',
                         unsafe_allow_html=True)
             st.markdown('<p class="form-section-label">01 / Your details</p>', unsafe_allow_html=True)
             a, b = st.columns(2)
@@ -894,8 +917,12 @@ def render_registration():
             a, b = st.columns(2)
             reg_student_id = a.text_input("Student ID *", placeholder="Your student number", key="signup_id")
             reg_uni = b.text_input("University *", placeholder="Your university", key="signup_university")
+            reg_degree = st.text_input("Degree / subject", placeholder="e.g. Computer Science", key="signup_degree")
             a, b = st.columns(2)
-            reg_degree = a.text_input("Degree / subject", placeholder="e.g. Computer Science", key="signup_degree")
+            reg_level = a.selectbox(
+                "Level of study *", _STUDY_LEVELS, index=None,
+                placeholder="Select your level", key="signup_level",
+            )
             reg_experience = b.selectbox(
                 "ML experience", ["Beginner", "Intermediate", "Advanced", "Expert"], key="signup_experience"
             )
@@ -911,10 +938,15 @@ def render_registration():
                 reg_team = st.text_input("Team name", placeholder="Only if you have a team", key="signup_team")
             st.caption("Registering a team? One person signs up for the whole group and enters the team name. "
                        "On your own? Choose “Looking for a team” and leave the name blank.")
+            reg_auto_match = st.checkbox(
+                f"If I'm looking for a team, match me with teammates if I haven't found one by "
+                f"{EVENT_CONFIG['team_match_deadline']}",
+                value=True, key="signup_auto_match",
+            )
             with st.expander("Anything else? (optional)"):
                 reg_interest = st.text_area("A note for the organisers", key="signup_note", height=80)
             submitted = st.form_submit_button(
-                "Register interest  ↗", use_container_width=True, type="primary"
+                "Register  ↗", use_container_width=True, type="primary"
             )
             st.caption("Your details are used to organise this event and coordinate teams.")
 
@@ -930,6 +962,8 @@ def render_registration():
                 st.warning(
                     "Please fill in your name, student ID, student email and university."
                 )
+            elif reg_level is None:
+                st.warning("Please select your level of study.")
             elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", reg_email_clean):
                 st.warning("Enter a valid student email address.")
             elif not reg_team_clean and not _is_looking_for_team:
@@ -947,6 +981,8 @@ def render_registration():
                             reg_name.strip(), reg_student_id_clean, reg_email_clean,
                             reg_uni.strip(), reg_degree.strip(),
                             reg_team_clean, reg_team_size, reg_experience, reg_interest,
+                            reg_level,
+                            ("yes" if reg_auto_match else "no") if _is_looking_for_team else "",
                         )
                         st.session_state["registration_saved_2026"] = True
                         if _is_looking_for_team and not reg_team_clean:
@@ -1095,11 +1131,53 @@ def _render_hub_sign_in():
             )
 
 
-def _render_find_team(email):
+def _render_level_prompt(email):
+    """Ask registrants who signed up before the level question existed."""
+    with st.form("hub_study_level"):
+        st.markdown(
+            '<p class="hub-status"><strong>One quick question.</strong> Your level of study '
+            'decides prize eligibility and who you are matched with.</p>',
+            unsafe_allow_html=True,
+        )
+        level = st.radio("Level of study", _STUDY_LEVELS, index=None, horizontal=True, key="hub_level")
+        saved = st.form_submit_button("Save", use_container_width=True)
+    if saved:
+        if level is None:
+            st.warning("Please choose a level of study.")
+        elif _set_registrant_field(email, "study_level", level):
+            _hub_done("Level of study saved. Thanks!")
+        else:
+            st.error("Something went wrong. Please try again.")
+
+
+def _render_auto_match_setting(email, me):
+    deadline = EVENT_CONFIG["team_match_deadline"]
+    wants = _wants_auto_match(me)
+    choice = st.toggle(
+        f"Match me with teammates if I'm not in a team by {deadline}",
+        value=wants, key="hub_auto_match",
+    )
+    if choice != wants:
+        _set_registrant_field(email, "auto_match", "yes" if choice else "no")
+        _hub_done(
+            f"You'll be matched with teammates after {deadline} if you haven't joined a team."
+            if choice else "You won't be matched automatically. You can turn this back on anytime.",
+            "success" if choice else "info",
+        )
+    st.caption(
+        "Matched teams have 3–4 people at the same level of study, with a mix of ML experience. "
+        "We'll email you your team name and teammates."
+        if choice else
+        "You have opted out of matching. Join or start a team below to compete."
+    )
+
+
+def _render_find_team(email, me):
     st.markdown(
         '<p class="hub-status">You are not in a team yet. Choose one of the options below.</p>',
         unsafe_allow_html=True,
     )
+    _render_auto_match_setting(email, me)
     join_tab, friend_tab, start_tab = st.tabs(
         ["Open teams", "Friend's team", "Start a team"]
     )
@@ -1260,7 +1338,7 @@ def _render_preformed_team(email, me):
     if team_name:
         with st.expander("Remove team from the board"):
             st.caption(
-                "Your registration stays on the early-interest list, but the team "
+                "Your registration stays active, but the team "
                 "name is removed and it no longer appears on the public board."
             )
             if st.button("Remove team", key="hub_remove_preformed"):
@@ -1300,13 +1378,16 @@ def _render_team_hub():
         st.session_state.pop(_HUB_IDENTITY_KEY, None)
         st.rerun()
 
+    if not (me.get("study_level") or "").strip():
+        _render_level_prompt(email)
+
     team_name = (me.get("team_name") or "").strip()
     if (me.get("team_size") or "").strip() in ("2", "3", "4"):
         _render_preformed_team(email, me)
     elif team_name:
         _render_my_hub_team(email, team_name)
     else:
-        _render_find_team(email)
+        _render_find_team(email, me)
 
 
 @st.fragment
@@ -1336,9 +1417,9 @@ that is recruiting, join a friend's team by name, or start your own.</p></div>
 def render_registered_teams():
     """Showcase all teams that have a name."""
     st.markdown("""
-<div class="section-heading board-heading"><p class="eyebrow">Early interest</p>
-<h2>Teams interested.</h2>
-<p class="section-description">These teams have registered interest. Ticket details will follow by email.</p></div>
+<div class="section-heading board-heading"><p class="eyebrow">Registered</p>
+<h2>Teams registered.</h2>
+<p class="section-description">These teams have registered. Every member also needs a ticket from QMSU.</p></div>
 """, unsafe_allow_html=True)
 
     all_teams = _get_all_named_teams()

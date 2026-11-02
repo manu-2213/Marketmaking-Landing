@@ -20,14 +20,14 @@ def _section_heading(label, title, description=""):
 
 
 def render_hero():
-    registration_label = "Early interest open" if EVENT_CONFIG["registration_open"] else "Coming soon"
+    registration_label = "Registration open" if EVENT_CONFIG["registration_open"] else "Coming soon"
     st.html(
         f"""
 <nav class="site-nav" aria-label="Main navigation">
     <a class="brand" href="#top"><span class="brand-mark">QMML<span>/</span></span>
     <span class="brand-caption">Machine Learning Society<br>Queen Mary University of London</span></a>
     <div class="nav-links"><a href="#challenge">The challenge</a><a href="#how-it-works">How it works</a>
-    <a href="#prizes">Prizes</a><a href="#team-hub">Find a team</a><a class="nav-cta" href="#register">Register interest <span aria-hidden="true">↗</span></a></div>
+    <a href="#prizes">Prizes</a><a href="#tickets">Tickets</a><a href="#team-hub">Find a team</a><a class="nav-cta" href="#register">Register <span aria-hidden="true">↗</span></a></div>
 </nav>
 <section class="hero" id="top" aria-label="AI Market-Making Hackathon 2026">
     <div class="hero-copy">
@@ -35,15 +35,15 @@ def render_hero():
         <p class="hero-event">{escape(EVENT_CONFIG["title"])}</p>
         <h1>Make the<br><span class="market-accent">Market.</span></h1>
         <p class="hero-description">Your model. Your market.<br>Turn machine learning into a competitive edge.</p>
-        <div class="hero-actions"><a class="button button-blue" href="#register">Register interest <span aria-hidden="true">↗</span></a>
-        <a class="text-link" href="#challenge">Explore the challenge <span aria-hidden="true">↓</span></a></div>
+        <div class="hero-actions"><a class="button button-blue" href="#register">Register your team <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="#tickets">How to enter <span aria-hidden="true">↓</span></a></div>
     </div>
     <aside class="event-pass" aria-label="Event dates">
-        <div class="pass-header"><span>THE 2026 EDITION</span><span>IN PERSON</span></div>
+        <div class="pass-header"><span>THE 2026 EDITION</span><span>IN PERSON &amp; ONLINE</span></div>
         <div class="pass-date"><span class="date-number">19</span><div><span class="date-month">NOVEMBER 2026</span>
-        <h2>Opening<br>ceremony</h2><p>{escape(EVENT_CONFIG["opening_date"])}</p></div></div>
+        <h2>Opening<br>ceremony</h2><p>{escape(EVENT_CONFIG["opening_date"])} · {escape(EVENT_CONFIG["event_time"])}</p></div></div>
         <div class="pass-date"><span class="date-number">26</span><div><span class="date-month">NOVEMBER 2026</span>
-        <h2>Live competition<br>&amp; closing</h2><p>{escape(EVENT_CONFIG["competition_date"])}</p></div></div>
+        <h2>Live competition<br>&amp; closing</h2><p>{escape(EVENT_CONFIG["competition_date"])} · {escape(EVENT_CONFIG["event_time"])}</p></div></div>
         <div class="pass-footer"><span>QMML / LONDON</span><span>Venue to be announced</span></div>
     </aside>
 </section>
@@ -68,7 +68,7 @@ def render_stats():
     <div><span class="eyebrow">01 / Teams registered</span><strong class="stat-value">{escape(team_label)}</strong></div>
     <div><span class="eyebrow">02 / People represented</span><strong class="stat-value">{escape(member_label)}</strong></div>
     <div><span class="eyebrow">03 / Prize pot</span><strong class="stat-value"><a href="#prizes">{_prize_pot_label()}</a></strong><span class="stat-note">and growing</span></div>
-    <div><span class="eyebrow">04 / Tickets</span><strong>Coming soon</strong><span class="stat-note">We’ll email you when they go on sale</span></div>
+    <div><span class="eyebrow">04 / Tickets</span><strong><a href="#tickets">On sale now</a></strong><span class="stat-note">New batch available on QMSU</span></div>
 </section>
 """, unsafe_allow_html=True,
     )
@@ -531,13 +531,14 @@ def render_quote_lab():
 
 def render_who():
     st.markdown(
-        """
+        f"""
 <section class="participation-grid">
     <div><p class="eyebrow">03 / Made for curious minds</p><h2>You bring the model.<br>Bring your team, too.</h2></div>
     <div><p>Open to university students across universities. A working knowledge of Python
     and machine learning is a great starting point. Finance experience isn't required.</p>
     <p>Already have a team? One representative can register your group of 2&nbsp;to&nbsp;4.
-    Coming on your own? Register as looking for teammates and use the Team Hub.</p></div>
+    Coming on your own? Register as looking for a team. Join or start one in the Team Hub,
+    or we’ll match you with teammates after {escape(EVENT_CONFIG["team_match_deadline"])}.</p></div>
 </section>
 """, unsafe_allow_html=True,
     )
@@ -552,6 +553,67 @@ PRIZE_DESCRIPTIONS = {
     "Best Sortino ratio": "The best risk-adjusted return, penalising only downside volatility.",
     "Special awards": "Recognising teams at every level of study, plus one prize drawn at random.",
 }
+
+
+def render_tickets():
+    url = escape(EVENT_CONFIG["tickets_url"], quote=True)
+    steps = (
+        ("Register your team on this site", "One registration per team. On your own? Register as looking for a team."),
+        ("Log in to QMSU", "Tickets only appear once you log in. Not a Queen Mary student? Register as a guest first."),
+        ("Everyone buys their own ticket", "Each team member pays individually. Have a discount code from your society? Enter it when you pay."),
+    )
+    step_items = "".join(
+        f"<li><strong>{escape(title)}</strong><span>{escape(body)}</span></li>" for title, body in steps
+    )
+    ticket_cards = "".join(
+        f'<article class="ticket-card"><span class="ticket-who">{escape(who)}</span>'
+        f"<h3>{escape(ticket)}</h3><p>{escape(note)}</p></article>"
+        for who, ticket, note in EVENT_CONFIG["ticket_options"]
+    )
+    st.markdown(
+        '<div id="tickets"></div>'
+        + _section_heading(
+            "05 / How to enter",
+            "Register your team, then get your tickets.",
+            "New tickets are on sale now. To compete, your team must be registered here "
+            "and every member needs their own ticket.",
+        )
+        + f"""
+<section class="ticket-layout">
+    <div class="ticket-steps"><ol class="match-steps">{step_items}</ol>
+    <a class="button button-blue" href="{url}" target="_blank" rel="noopener noreferrer">Get tickets on QMSU <span aria-hidden="true">↗</span></a></div>
+    <div><p class="eyebrow">Which ticket do I need?</p><div class="ticket-grid">{ticket_cards}</div></div>
+</section>
+""", unsafe_allow_html=True,
+    )
+
+
+def render_team_matching():
+    deadline = escape(EVENT_CONFIG["team_match_deadline"])
+    opening = escape(EVENT_CONFIG["opening_date"])
+    points = (
+        ("Join or start a team", f"Use the Team Hub below any time before {deadline}."),
+        ("Or let us match you", f"Anyone still without a team after {deadline} is placed in a team of 3&nbsp;or&nbsp;4."),
+        ("Matched fairly", "Same level of study, so every team can compete for the undergraduate and "
+                           "postgraduate prizes, with a mix of ML experience."),
+        ("Introduced by email", "You’ll get your team name and your teammates’ names before the opening ceremony."),
+        ("Late sign-ups", f"Registering after {deadline}? Join the team-forming session at the opening "
+                          f"ceremony on {opening}."),
+    )
+    items = "".join(
+        f'<li><strong>{escape(title)}</strong><span>{body}</span></li>' for title, body in points
+    )
+    st.markdown(
+        f"""
+<section class="match-card" id="team-matching">
+    <div><p class="eyebrow"><span class="status-dot"></span> No team? No problem.</p>
+    <h3>We’ll match you with teammates.</h3>
+    <p>Registered as looking for a team? You’re covered. Don’t want to be matched?
+    Turn matching off in the Team Hub.</p></div>
+    <ol class="match-steps">{items}</ol>
+</section>
+""", unsafe_allow_html=True,
+    )
 
 
 def render_prizes():
@@ -606,7 +668,8 @@ def render_footer():
 <footer class="site-footer"><div><a class="brand" href="#top">QMML</a>
 <p>Queen Mary University of London<br>Machine Learning Society</p></div>
 <div class="footer-links"><a href="https://www.qmsu.org/groups/qmml/">The society ↗</a>
-<a href="#register">Registration ↗</a><span>© {EVENT_CONFIG["year"]} QMML</span></div></footer>
+<a href="#register">Registration ↗</a>
+<a href="{escape(EVENT_CONFIG["tickets_url"], quote=True)}" target="_blank" rel="noopener noreferrer">Tickets ↗</a><span>© {EVENT_CONFIG["year"]} QMML</span></div></footer>
 <p class="simulation-disclaimer">A simulated, zero-sum competition. Under the simulation's accounting rules,
 one team's gains correspond to other teams' losses. No real capital is traded.</p>
 """, unsafe_allow_html=True,

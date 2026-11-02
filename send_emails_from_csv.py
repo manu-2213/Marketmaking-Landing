@@ -10,6 +10,7 @@ Example:
     python send_emails_from_csv.py out/team_invites_20260325_144224/email_drafts.csv --dry-run
 """
 
+import os
 import sys
 import csv
 import smtplib
@@ -21,7 +22,7 @@ from pathlib import Path
 SMTP_HOST      = "smtp.gmail.com"
 SMTP_PORT      = 587
 SENDER_EMAIL   = "manuel.teres356356@gmail.com"        # ← Gmail account
-SENDER_PASSWORD = "REMOVED"                # ← Gmail app password
+SENDER_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 SENDER_NAME    = "QMUL AI Hackathon"
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,9 @@ def main():
     if DRY_RUN:
         print("DRY RUN MODE: No emails will actually be sent.\n")
     else:
+        if not SENDER_PASSWORD:
+            print("Set GMAIL_APP_PASSWORD before sending real emails.")
+            sys.exit(1)
         response = input("Ready to send real emails. Continue? (yes/no): ")
         if response.lower() != 'yes':
             print("Cancelled.")

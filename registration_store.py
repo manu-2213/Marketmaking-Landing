@@ -20,6 +20,8 @@ REGISTRATION_HEADERS = (
     "open_for_joining",
     "open_spots",
     "student_id",
+    "study_level",
+    "auto_match",  # "no" opts out of organiser matching; blank means yes
 )
 
 _CSV_LOCK = threading.RLock()
