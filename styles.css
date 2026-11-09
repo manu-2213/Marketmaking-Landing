@@ -288,6 +288,7 @@ h1, h2, h3, p { overflow-wrap: break-word; }
 .hub-team-row { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; background: #0b121d; border: 1px solid var(--border); border-radius: 6px; }
 .hub-team-row strong { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
 .hub-team-row span { color: var(--text-secondary); font-size: 13px; }
+.hub-team-row .hub-team-degrees { color: var(--accent); overflow-wrap: anywhere; }
 .hub-team-card { padding: 24px; margin: 8px 0 14px; background: var(--surface); border: 1px solid #34445b; border-radius: 10px; }
 .hub-team-card .eyebrow { margin-bottom: 8px; }
 .hub-team-card h3 { font-size: 26px !important; font-weight: 600; letter-spacing: -.035em; margin: 0 0 6px; padding: 0; overflow-wrap: anywhere; }

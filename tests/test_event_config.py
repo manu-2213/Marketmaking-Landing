@@ -245,6 +245,23 @@ class TeamHubTests(unittest.TestCase):
         components._set_team_openness("Quiet", None)
         self.assertEqual(components._get_open_teams(), {})
 
+    def test_recruiting_team_row_shows_each_degree_once_and_escapes_it(self):
+        info = {
+            "effective_size": 3, "open_spots": 1,
+            "members": [
+                {"degree": "Computer Science"}, {"degree": "computer science "},
+                {"degree": "Maths <b>"}, {"degree": ""},
+            ],
+        }
+        row = components._hub_team_row_html("Delta", info)
+        self.assertEqual(row.count("omputer") , 1)
+        self.assertIn("Computer Science · Maths &lt;b&gt;", row)
+        self.assertNotIn("<b>", row)
+
+    def test_recruiting_team_row_omits_degrees_when_none_were_given(self):
+        info = {"effective_size": 1, "open_spots": 3, "members": [{"degree": ""}]}
+        self.assertNotIn("hub-team-degrees", components._hub_team_row_html("Delta", info))
+
     def test_matching_defaults_on_and_opt_out_is_stored(self):
         self._register("a@example.edu", "QM1")
         _, record = components._verify_email("a@example.edu")

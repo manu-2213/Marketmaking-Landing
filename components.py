@@ -1107,6 +1107,27 @@ def _open_team_cards_html(open_teams):
     return html + '</div>'
 
 
+def _team_degrees(members):
+    """Distinct degrees in a team, as members entered them when registering."""
+    degrees = {}
+    for member in members:
+        degree = (member.get("degree") or "").strip()
+        if degree:
+            degrees.setdefault(degree.casefold(), degree)
+    return list(degrees.values())
+
+
+def _hub_team_row_html(name, info):
+    """One recruiting team, as shown to signed-in registrants choosing a team."""
+    degrees = " · ".join(escape(degree) for degree in _team_degrees(info["members"]))
+    degrees_html = f'<span class="hub-team-degrees">{degrees}</span>' if degrees else ""
+    return (
+        f'<div class="hub-team-row"><strong>{escape(name)}</strong>'
+        f'<span>{_plural(info["effective_size"], "member")} · '
+        f'{_plural(info["open_spots"], "spot")} open</span>{degrees_html}</div>'
+    )
+
+
 def _render_hub_sign_in():
     with st.form("team_hub_sign_in"):
         st.markdown(
@@ -1191,12 +1212,7 @@ def _render_find_team(email, me):
             )
         for i, (name, info) in enumerate(open_teams.items()):
             card, action = st.columns([3, 1], vertical_alignment="center")
-            card.markdown(
-                f'<div class="hub-team-row"><strong>{escape(name)}</strong>'
-                f'<span>{_plural(info["effective_size"], "member")} · '
-                f'{_plural(info["open_spots"], "spot")} open</span></div>',
-                unsafe_allow_html=True,
-            )
+            card.markdown(_hub_team_row_html(name, info), unsafe_allow_html=True)
             if action.button("Join", key=f"hub_join_{i}", use_container_width=True):
                 if name not in _get_open_teams():
                     st.error(f'"{name}" has just filled up or closed. Please pick another team.')
