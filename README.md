@@ -42,6 +42,10 @@ Do not publish the spreadsheet or a participant export.
   `yes` means "match me after `team_match_deadline`" (set in event_config.py); `no`
   means they opted out. The site announces the matching policy; the matching itself
   is done by the organisers after the deadline.
+- `team_size` is `1 (looking for a team)` for people without a team, `1` for someone
+  competing solo (a named team of one, set at registration or via "Go solo" in the
+  Team Hub), and `2`–`4` for a whole team registered by one person. Matching should
+  use `team_name`/`team_size`: `looking_for_team` is only set when a row is created.
 - `looking_for_team` is explicitly stored; the Team Hub also uses the existing
   `team_size`, `open_for_joining` and `open_spots` fields.
 - The first successful registration adds any missing columns to the header,

@@ -55,7 +55,7 @@ class EventConfigTests(unittest.TestCase):
         self.assertEqual(EVENT_CONFIG["opening_date"], "19 November 2026")
         self.assertEqual(EVENT_CONFIG["competition_date"], "26 November 2026")
         self.assertIn("In person", EVENT_CONFIG["venue"])
-        self.assertEqual(EVENT_CONFIG["team_size"], "2–4 participants")
+        self.assertEqual(EVENT_CONFIG["team_size"], "1–4 participants")
 
     def test_registration_is_open_and_no_longer_uses_local_csv(self):
         self.assertTrue(EVENT_CONFIG["registration_open"])
@@ -261,6 +261,27 @@ class TeamHubTests(unittest.TestCase):
     def test_recruiting_team_row_omits_degrees_when_none_were_given(self):
         info = {"effective_size": 1, "open_spots": 3, "members": [{"degree": ""}]}
         self.assertNotIn("hub-team-degrees", components._hub_team_row_html("Delta", info))
+
+    def test_going_solo_makes_a_team_of_one_that_nobody_can_join(self):
+        self._register("solo@example.edu", "QM1")
+        self._register("other@example.edu", "QM2")
+        ok, _ = components._go_solo("solo@example.edu", "Lone Wolf")
+        self.assertTrue(ok)
+        _, record = components._verify_email("solo@example.edu")
+        self.assertEqual((record["team_name"], record["team_size"]), ("Lone Wolf", "1"))
+        self.assertFalse(components._join_team("other@example.edu", "Lone Wolf")[0])
+        self.assertEqual(components._count_people_looking(), 1)
+        self.assertEqual(components._get_all_named_teams()["Lone Wolf"]["size"], 1)
+        self.assertEqual(components.get_registration_stats(), (1, 2))
+
+    def test_solo_team_name_must_be_unique_and_can_reopen_to_teammates(self):
+        self._register("a@example.edu", "QM1", "Taken", "2")
+        self._register("solo@example.edu", "QM2")
+        self._register("friend@example.edu", "QM3")
+        self.assertFalse(components._go_solo("solo@example.edu", "taken")[0])
+        self.assertTrue(components._go_solo("solo@example.edu", "Lone Wolf")[0])
+        self.assertTrue(components._open_solo_team("solo@example.edu"))
+        self.assertTrue(components._join_team("friend@example.edu", "Lone Wolf")[0])
 
     def test_matching_defaults_on_and_opt_out_is_stored(self):
         self._register("a@example.edu", "QM1")

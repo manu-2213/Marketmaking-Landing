@@ -145,6 +145,23 @@ class RegistrationFormTests(unittest.TestCase):
         self.assertEqual(saved[11], "STUDENT-01")
         self.assertEqual(saved[12:14], ["Undergraduate", "yes"])
 
+    def test_going_solo_registers_a_named_team_of_one(self):
+        store = Mock()
+        store.get_all_values.return_value = [list(REGISTRATION_HEADERS)]
+        app = self.fill(self.app(store), "Going solo (team of one)", team="Lone Wolf")
+        app.button[0].click().run()
+        self.assertEqual(len(app.success), 1)
+        saved = store.append_row.call_args.args[0]
+        self.assertEqual(saved[5:7], ["Lone Wolf", "1"])
+        self.assertEqual(saved[13], "")
+
+    def test_going_solo_requires_a_team_name(self):
+        store = Mock()
+        app = self.fill(self.app(store), "Going solo (team of one)")
+        app.button[0].click().run()
+        self.assertIn("team name", app.warning[0].value)
+        store.append_row.assert_not_called()
+
     def test_level_of_study_is_required(self):
         store = Mock()
         store.get_all_values.return_value = [list(REGISTRATION_HEADERS)]

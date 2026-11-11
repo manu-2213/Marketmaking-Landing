@@ -47,6 +47,16 @@ def get_team_count():
 # 9=open_for_joining
 
 _SOLO_LABEL = "1 (looking for a team)"
+_SOLO_TEAM_SIZE = "1"  # a named team of one, competing solo
+_DECLARED_SIZES = (_SOLO_TEAM_SIZE, "2", "3", "4")
+
+_JOINING_OPTIONS = {
+    "Looking for a team": _SOLO_LABEL,
+    "Going solo (team of one)": _SOLO_TEAM_SIZE,
+    "Team of 2": "2",
+    "Team of 3": "3",
+    "Team of 4": "4",
+}
 
 
 def _get_all_rows():
@@ -328,7 +338,8 @@ def _get_all_named_teams():
     that should be displayed.
 
     Included:
-    - Pre-formed teams: team_size in (2,3,4) with a team_name. Size comes from
+    - Declared teams: team_size in (1,2,3,4) with a team_name, where 1 is a
+      registrant competing solo. Size comes from
       the team_size column (the registrant entered it for the whole team).
         - Forming teams: individuals sharing a team_name are shown once at least
             two people have joined through the Team Hub.
@@ -338,7 +349,7 @@ def _get_all_named_teams():
         return {}
     header = rows[0]
 
-    preformed: dict[str, dict] = {}   # team_size 2-4
+    preformed: dict[str, dict] = {}   # team_size 1-4
     solo_groups: dict[str, list[dict]] = {}  # team_size == _SOLO_LABEL
 
     for r in rows[1:]:
@@ -347,7 +358,7 @@ def _get_all_named_teams():
         if not tn:
             continue
         d = _row_to_dict(header, r)
-        if ts in ("2", "3", "4"):
+        if ts in _DECLARED_SIZES:
             if tn not in preformed:
                 preformed[tn] = {"members": [], "size": int(ts)}
             preformed[tn]["members"].append(d)
@@ -385,7 +396,7 @@ def get_registration_stats():
         record = _row_to_dict(header, row)
         team_name = (record.get("team_name") or "").strip().casefold()
         team_size = (record.get("team_size") or "").strip()
-        if team_size in ("2", "3", "4"):
+        if team_size in _DECLARED_SIZES:
             if team_name:
                 preformed_teams.setdefault(team_name, int(team_size))
             else:
@@ -931,13 +942,14 @@ def render_registration():
             with a:
                 team_size_choice = st.selectbox(
                     "How are you joining? *",
-                    ["Looking for a team", "Team of 2", "Team of 3", "Team of 4"],
+                    list(_JOINING_OPTIONS),
                     key="signup_team_size",
                 )
             with b:
                 reg_team = st.text_input("Team name", placeholder="Only if you have a team", key="signup_team")
             st.caption("Registering a team? One person signs up for the whole group and enters the team name. "
-                       "On your own? Choose “Looking for a team” and leave the name blank.")
+                       "On your own? Choose “Going solo” and pick a team name, or “Looking for a team” "
+                       "and leave the name blank.")
             reg_auto_match = st.checkbox(
                 f"If I'm looking for a team, match me with teammates if I haven't found one by "
                 f"{EVENT_CONFIG['team_match_deadline']}",
@@ -952,7 +964,7 @@ def render_registration():
 
         if submitted:
             _is_looking_for_team = team_size_choice == "Looking for a team"
-            reg_team_size = _SOLO_LABEL if _is_looking_for_team else team_size_choice[-1]
+            reg_team_size = _JOINING_OPTIONS[team_size_choice]
             reg_team_clean = reg_team.strip()
             reg_email_clean = reg_student_email.strip().lower()
             reg_student_id_clean = reg_student_id.strip()
@@ -1067,6 +1079,21 @@ def _start_team(email: str, team_name: str, target_size: int, listed: bool):
             f"{_plural(target_size - 1, 'open spot')}."
         )
     return True, f'Team "{team_name}" created. Share the exact name with friends so they can join.'
+
+
+def _go_solo(email: str, team_name: str):
+    """Turn a registrant without a team into a named team of one. Returns (ok, message)."""
+    if _team_name_taken_by_other_group(team_name):
+        return False, "That team name is already taken. Please choose another."
+    if not (_update_team_name(email, team_name)
+            and _set_registrant_field(email, "team_size", _SOLO_TEAM_SIZE)):
+        return False, "Something went wrong. Please try again."
+    return True, f'You\'re competing solo as "{team_name}". Good luck!'
+
+
+def _open_solo_team(email: str):
+    """Let a solo competitor take teammates; their team keeps its name, private at first."""
+    return _set_registrant_field(email, "team_size", _SOLO_LABEL)
 
 
 def _count_people_looking():
@@ -1199,8 +1226,8 @@ def _render_find_team(email, me):
         unsafe_allow_html=True,
     )
     _render_auto_match_setting(email, me)
-    join_tab, friend_tab, start_tab = st.tabs(
-        ["Open teams", "Friend's team", "Start a team"]
+    join_tab, friend_tab, start_tab, solo_tab = st.tabs(
+        ["Open teams", "Friend's team", "Start a team", "Go solo"]
     )
 
     with join_tab:
@@ -1254,6 +1281,21 @@ def _render_find_team(email, me):
                 st.warning("Please enter a team name.")
             else:
                 ok, message = _start_team(email, team_name.strip(), target_size, listed)
+                if ok:
+                    _hub_done(message)
+                st.error(message)
+
+    with solo_tab:
+        with st.form("hub_go_solo", clear_on_submit=False):
+            st.caption("Compete as a team of one. You won't be matched with anyone, "
+                       "and you can open your team to teammates later.")
+            team_name = st.text_input("Team name", key="hub_solo_team")
+            submitted = st.form_submit_button("Go solo", use_container_width=True)
+        if submitted:
+            if not team_name.strip():
+                st.warning("Please enter a team name.")
+            else:
+                ok, message = _go_solo(email, team_name.strip())
                 if ok:
                     _hub_done(message)
                 st.error(message)
@@ -1322,6 +1364,37 @@ def _render_my_hub_team(email, team_name):
         if st.button("Leave this team", key="hub_leave"):
             if _clear_team_fields_for_email(email):
                 _hub_done(f'You left "{team_name}".')
+            st.error("Something went wrong. Please try again.")
+
+
+def _render_solo_team(email, me):
+    team_name = (me.get("team_name") or "").strip()
+    st.markdown(
+        f'<div class="hub-team-card"><p class="eyebrow">Your team</p>'
+        f'<h3>{escape(team_name)}</h3>'
+        f'<p class="hub-team-meta">Competing solo · team of one</p></div>',
+        unsafe_allow_html=True,
+    )
+    with st.form("hub_solo_name"):
+        new_name = st.text_input("Team name", value=team_name, key="hub_solo_name_input")
+        saved = st.form_submit_button("Save team name", use_container_width=True)
+    if saved:
+        new_name = new_name.strip()
+        if not new_name:
+            st.warning("Team name can't be empty.")
+        elif _team_name_taken_by_other_group(new_name, team_name):
+            st.error("That team name is already used by another team.")
+        elif _update_team_name(email, new_name):
+            _hub_done(f'Team renamed to "{new_name}".')
+        else:
+            st.error("Something went wrong. Please try again.")
+
+    with st.expander("Want teammates after all?"):
+        st.caption("Your team keeps its name. Friends can then join it by name, "
+                   "and you can make it public in Team settings.")
+        if st.button("Open my team to teammates", key="hub_open_solo"):
+            if _open_solo_team(email):
+                _hub_done(f'"{team_name}" is now open to teammates.')
             st.error("Something went wrong. Please try again.")
 
 
@@ -1398,7 +1471,10 @@ def _render_team_hub():
         _render_level_prompt(email)
 
     team_name = (me.get("team_name") or "").strip()
-    if (me.get("team_size") or "").strip() in ("2", "3", "4"):
+    team_size = (me.get("team_size") or "").strip()
+    if team_size == _SOLO_TEAM_SIZE and team_name:
+        _render_solo_team(email, me)
+    elif team_size in ("2", "3", "4"):
         _render_preformed_team(email, me)
     elif team_name:
         _render_my_hub_team(email, team_name)

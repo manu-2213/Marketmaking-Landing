@@ -537,7 +537,8 @@ def render_who():
     <div><p>Open to university students across universities. A working knowledge of Python
     and machine learning is a great starting point. Finance experience isn't required.</p>
     <p>Already have a team? One representative can register your group of 2&nbsp;to&nbsp;4.
-    Coming on your own? Register as looking for a team. Join or start one in the Team Hub,
+    Prefer to go it alone? You can compete solo as a team of one.
+    Or register as looking for a team: join or start one in the Team Hub,
     or we’ll match you with teammates after {escape(EVENT_CONFIG["team_match_deadline"])}.</p></div>
 </section>
 """, unsafe_allow_html=True,

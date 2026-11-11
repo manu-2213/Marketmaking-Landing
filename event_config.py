@@ -9,7 +9,7 @@ EVENT_CONFIG = {
     "event_time": "6 pm",
     "venue": "In person and online; venue details to be announced",
     "eligibility": "University students across universities",
-    "team_size": "2–4 participants",
+    "team_size": "1–4 participants",
     # Registrants still without a team after this date are matched by the organisers.
     "team_match_deadline": "13 November 2026",
     "round_count_min": 9,
