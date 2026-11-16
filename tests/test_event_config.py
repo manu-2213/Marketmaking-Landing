@@ -190,7 +190,7 @@ class EventConfigTests(unittest.TestCase):
     def test_prize_pot_is_shown_as_growing_total_without_per_prize_amounts(self):
         from event_sections import _prize_pot_label
 
-        self.assertEqual(_prize_pot_label(), "£300+")
+        self.assertEqual(_prize_pot_label(), "£400+")
         awards = [a for _, group in EVENT_CONFIG["prize_categories"] for a in group]
         self.assertEqual(len(awards), 9)
         self.assertFalse(any("£" in award for award in awards))

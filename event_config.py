@@ -25,7 +25,7 @@ EVENT_CONFIG = {
         ("Attending online", "Online ticket", "For anyone taking part remotely instead of in person."),
     ),
     # Current pot in GBP. All ticket revenue is added to it; shown as "£N+".
-    "prize_pot_gbp": 300,
+    "prize_pot_gbp": 400,
     "prize_categories": (
         ("Best overall P&L", ("1st place", "2nd place", "3rd place")),
         ("Best Sortino ratio", ("1st place", "2nd place", "3rd place")),
