@@ -7,7 +7,8 @@ EVENT_CONFIG = {
     "opening_date": "19 November 2026",
     "competition_date": "26 November 2026",
     "event_time": "6 pm",
-    "venue": "In person and online; venue details to be announced",
+    "venue": "In person at the Mason Lecture Theatre, Bancroft Building, Queen Mary University of London (Mile End), and online",
+    "venue_name": "Mason Lecture Theatre, Bancroft Building",
     "eligibility": "University students across universities",
     "team_size": "1–4 participants",
     # Registrants still without a team after this date are matched by the organisers.

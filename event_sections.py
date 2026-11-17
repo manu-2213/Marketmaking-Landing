@@ -44,7 +44,7 @@ def render_hero():
         <h2>Opening<br>ceremony</h2><p>{escape(EVENT_CONFIG["opening_date"])} · {escape(EVENT_CONFIG["event_time"])}</p></div></div>
         <div class="pass-date"><span class="date-number">26</span><div><span class="date-month">NOVEMBER 2026</span>
         <h2>Live competition<br>&amp; closing</h2><p>{escape(EVENT_CONFIG["competition_date"])} · {escape(EVENT_CONFIG["event_time"])}</p></div></div>
-        <div class="pass-footer"><span>QMML / LONDON</span><span>Venue to be announced</span></div>
+        <div class="pass-footer"><span>QMUL / MILE END</span><span>{escape(EVENT_CONFIG["venue_name"])}</span></div>
     </aside>
 </section>
 """,

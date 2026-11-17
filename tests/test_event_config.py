@@ -55,6 +55,7 @@ class EventConfigTests(unittest.TestCase):
         self.assertEqual(EVENT_CONFIG["opening_date"], "19 November 2026")
         self.assertEqual(EVENT_CONFIG["competition_date"], "26 November 2026")
         self.assertIn("In person", EVENT_CONFIG["venue"])
+        self.assertEqual(EVENT_CONFIG["venue_name"], "Mason Lecture Theatre, Bancroft Building")
         self.assertEqual(EVENT_CONFIG["team_size"], "1–4 participants")
 
     def test_registration_is_open_and_no_longer_uses_local_csv(self):
