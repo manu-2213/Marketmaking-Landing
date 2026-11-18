@@ -13,6 +13,8 @@ EVENT_CONFIG = {
     "team_size": "1–4 participants",
     # Registrants still without a team after this date are matched by the organisers.
     "team_match_deadline": "18 November 2026",
+    # Members of allocated teams can remove an unresponsive teammate from this time (London).
+    "teammate_removal_opens": "2026-11-19T19:00",
     "round_count_min": 9,
     "round_count_max": 10,
     "status": "registration open",

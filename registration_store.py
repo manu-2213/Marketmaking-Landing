@@ -22,6 +22,7 @@ REGISTRATION_HEADERS = (
     "student_id",
     "study_level",
     "auto_match",  # "no" opts out of organiser matching; blank means yes
+    "allocated_team",  # "yes" when the organisers placed this person in their team
 )
 
 _CSV_LOCK = threading.RLock()

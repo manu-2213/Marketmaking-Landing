@@ -10,7 +10,7 @@ from sheets_store import RegistrationStorageError, SheetsRegistrationStore
 def registration(email="student@example.edu", team="Test Team", size="2"):
     return [
         "2026-10-27", "Test Student", email, "Example University", "Computing",
-        team, size, "Intermediate", "", "", "", "STUDENT-01", "Undergraduate", "",
+        team, size, "Intermediate", "", "", "", "STUDENT-01", "Undergraduate", "", "",
     ]
 
 

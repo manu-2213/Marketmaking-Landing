@@ -284,6 +284,39 @@ class TeamHubTests(unittest.TestCase):
         self.assertTrue(components._open_solo_team("solo@example.edu"))
         self.assertTrue(components._join_team("friend@example.edu", "Lone Wolf")[0])
 
+    def _allocate(self, team, *emails):
+        for email in emails:
+            components._update_team_name(email, team)
+            components._set_registrant_field(email, "allocated_team", "yes")
+
+    def test_allocated_team_member_can_remove_teammate_only_after_ceremony(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        for i in range(3):
+            self._register(f"m{i}@example.edu", f"QM{i}")
+        self._allocate("Spread Eagles", "m0@example.edu", "m1@example.edu", "m2@example.edu")
+        london = ZoneInfo("Europe/London")
+        before = datetime(2026, 11, 19, 18, 30, tzinfo=london)
+        after = datetime(2026, 11, 19, 19, 5, tzinfo=london)
+        self.assertFalse(components._remove_teammate("m0@example.edu", "m2@example.edu", now=before)[0])
+        self.assertFalse(components._remove_teammate("m0@example.edu", "m0@example.edu", now=after)[0])
+        ok, _ = components._remove_teammate("m0@example.edu", "m2@example.edu", now=after)
+        self.assertTrue(ok)
+        _, removed = components._verify_email("m2@example.edu")
+        self.assertEqual((removed["team_name"], removed["allocated_team"]), ("", ""))
+        self.assertEqual(len(components._get_teammates("Spread Eagles")), 2)
+        self.assertEqual(components._count_people_looking(), 1)
+
+    def test_self_formed_teams_cannot_remove_teammates(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        self._register("a@example.edu", "QM1")
+        self._register("b@example.edu", "QM2")
+        components._start_team("a@example.edu", "Friends", 4, listed=False)
+        components._join_team("b@example.edu", "Friends")
+        later = datetime(2026, 11, 20, tzinfo=ZoneInfo("Europe/London"))
+        self.assertFalse(components._remove_teammate("a@example.edu", "b@example.edu", now=later)[0])
+
     def test_matching_defaults_on_and_opt_out_is_stored(self):
         self._register("a@example.edu", "QM1")
         _, record = components._verify_email("a@example.edu")

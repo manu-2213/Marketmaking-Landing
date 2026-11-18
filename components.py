@@ -5,6 +5,7 @@ import streamlit as st
 import random
 import re
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from event_config import EVENT_CONFIG
 
 from sheets_store import get_registration_store, STORAGE_ERRORS
@@ -32,6 +33,7 @@ def _save_registration(name, student_id, email, university, degree, team_name,
         student_id,
         study_level,
         auto_match,
+        "",  # allocated_team — set only by the organisers' allocation
     ])
 
 
@@ -266,6 +268,9 @@ def _clear_team_fields_for_email(email: str):
     ws.update_cell(leaving_idx, team_col, "")
     ws.update_cell(leaving_idx, ofj_col, "")
     ws.update_cell(leaving_idx, spots_col, "")
+    if "allocated_team" in header and (rows[leaving_idx - 1][header.index("allocated_team")]
+                                       if len(rows[leaving_idx - 1]) > header.index("allocated_team") else ""):
+        ws.update_cell(leaving_idx, _col_index(header, "allocated_team"), "")
     return True
 
 
@@ -1096,6 +1101,38 @@ def _open_solo_team(email: str):
     return _set_registrant_field(email, "team_size", _SOLO_LABEL)
 
 
+def _is_allocated_team(members) -> bool:
+    return any((m.get("allocated_team") or "").strip().lower() == "yes" for m in members)
+
+
+def _teammate_removal_open(now=None) -> bool:
+    """Removing teammates from allocated teams only opens after the opening ceremony."""
+    london = ZoneInfo("Europe/London")
+    opens = datetime.fromisoformat(EVENT_CONFIG["teammate_removal_opens"]).replace(tzinfo=london)
+    return (now or datetime.now(london)) >= opens
+
+
+def _remove_teammate(remover_email: str, teammate_email: str, now=None):
+    """Remove an unresponsive member from an allocated team. Returns (ok, message)."""
+    remover = _verify_email(remover_email)
+    teammate = _verify_email(teammate_email)
+    if remover is None or teammate is None:
+        return False, "That registration could not be found. Please reload the page."
+    team = (remover[1].get("team_name") or "").strip()
+    if not team or team.casefold() != (teammate[1].get("team_name") or "").strip().casefold():
+        return False, "That person is no longer in your team."
+    if remover_email.strip().lower() == teammate_email.strip().lower():
+        return False, "Use “Leave team” to leave your own team."
+    if not _is_allocated_team(_get_teammates(team)):
+        return False, "Only teams allocated by the organisers can remove teammates."
+    if not _teammate_removal_open(now):
+        return False, "You can remove teammates after the opening ceremony."
+    if not _clear_team_fields_for_email(teammate_email):
+        return False, "Something went wrong. Please try again."
+    name = (teammate[1].get("name") or "").strip() or "That teammate"
+    return True, f"{name} has been removed from \"{team}\"."
+
+
 def _count_people_looking():
     """Count current registrants looking for a team who have not joined one."""
     _, rows = _get_all_rows()
@@ -1358,6 +1395,25 @@ def _render_my_hub_team(email, team_name):
                 if count < _MAX_TEAM_SIZE:
                     _set_team_openness(new_name, target if listed else None)
                 _hub_done("Team settings saved.")
+
+    if _is_allocated_team(members) and count > 1:
+        with st.expander("Remove a teammate who hasn't been in touch"):
+            opens = datetime.fromisoformat(EVENT_CONFIG["teammate_removal_opens"])
+            if not _teammate_removal_open():
+                st.caption(f"Available from {opens:%-I %p} on {opens:%-d %B}, after the opening ceremony, "
+                           "if a teammate still hasn't been in touch.".replace("AM", "am").replace("PM", "pm"))
+            else:
+                others = {m.get("email", "").strip().lower(): (m.get("name") or "").strip() or "Teammate"
+                          for m in members if m.get("email", "").strip().lower() != email}
+                choice = st.selectbox("Teammate to remove", list(others), format_func=others.get,
+                                      key="hub_remove_choice")
+                confirm = st.checkbox("They haven't been in touch with the team at all",
+                                      key="hub_remove_confirm")
+                if st.button("Remove from team", key="hub_remove_teammate", disabled=not confirm):
+                    ok, message = _remove_teammate(email, choice)
+                    if ok:
+                        _hub_done(message)
+                    st.error(message)
 
     with st.expander("Leave team"):
         st.caption("You'll go back to looking for a team. Your teammates stay together.")
