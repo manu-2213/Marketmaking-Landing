@@ -20,6 +20,24 @@ def _get_registration_store():
 _STUDY_LEVELS = ("Undergraduate", "Postgraduate")
 
 
+def _joining_options():
+    """Registration choices; "Looking for a team" only while random allocation is still to come."""
+    return [option for option in _JOINING_OPTIONS
+            if EVENT_CONFIG["allocation_open"] or _JOINING_OPTIONS[option] != _SOLO_LABEL]
+
+
+def _registration_status():
+    if EVENT_CONFIG["allocation_open"]:
+        return "Registration open"
+    return f"Late registration open until {EVENT_CONFIG['late_registration_until']}"
+
+
+def _team_or_solo_fact():
+    if EVENT_CONFIG["allocation_open"]:
+        return "Register your team, or come alone and we’ll help you find one."
+    return "Register your team, or go solo as a team of one."
+
+
 def _save_registration(name, student_id, email, university, degree, team_name,
                         team_size, experience, interest, study_level="", auto_match=""):
     """Save a registration to the organiser's Google Sheet."""
@@ -888,15 +906,15 @@ def render_registration():
 
     info, form_column = st.columns([0.85, 1.4], gap="large")
     with info:
-        st.markdown("""
+        st.markdown(f"""
 <div class="registration-intro">
-    <p class="eyebrow"><span class="status-dot"></span> 06 / Registration open</p>
+    <p class="eyebrow"><span class="status-dot"></span> 06 / {_registration_status()}</p>
     <h2>Register <br>your team.</h2>
     <p>This is step one. Once you’re registered, everyone on the team buys a ticket on the QMSU website.</p>
     <div class="registration-facts">
         <div><span>01</span><p><strong>One registration per team</strong><br>One person registers the whole team.</p></div>
         <div><span>02</span><p><strong>Everyone needs a ticket</strong><br>Each team member pays individually on QMSU.</p></div>
-        <div><span>03</span><p><strong>Team or solo</strong><br>Register your team, or come alone and we’ll help you find one.</p></div>
+        <div><span>03</span><p><strong>Team or solo</strong><br>{_team_or_solo_fact()}</p></div>
     </div>
     <p class="privacy-note">Student IDs and email addresses are kept private.
     Only team names and team sizes appear on the public board.</p>
@@ -947,19 +965,25 @@ def render_registration():
             with a:
                 team_size_choice = st.selectbox(
                     "How are you joining? *",
-                    list(_JOINING_OPTIONS),
+                    _joining_options(),
                     key="signup_team_size",
                 )
             with b:
                 reg_team = st.text_input("Team name", placeholder="Only if you have a team", key="signup_team")
-            st.caption("Registering a team? One person signs up for the whole group and enters the team name. "
-                       "On your own? Choose “Going solo” and pick a team name, or “Looking for a team” "
-                       "and leave the name blank.")
-            reg_auto_match = st.checkbox(
-                f"If I'm looking for a team, match me with teammates if I haven't found one by "
-                f"{EVENT_CONFIG['team_match_deadline']}",
-                value=True, key="signup_auto_match",
-            )
+            if EVENT_CONFIG["allocation_open"]:
+                st.caption("Registering a team? One person signs up for the whole group and enters the team name. "
+                           "On your own? Choose “Going solo” and pick a team name, or “Looking for a team” "
+                           "and leave the name blank.")
+                reg_auto_match = st.checkbox(
+                    f"If I'm looking for a team, match me with teammates if I haven't found one by "
+                    f"{EVENT_CONFIG['team_match_deadline']}",
+                    value=True, key="signup_auto_match",
+                )
+            else:
+                st.caption("Registering a team? One person signs up for the whole group and enters the team name. "
+                           "On your own? Choose “Going solo” and pick a team name. You can join a recruiting "
+                           "team in the Team Hub afterwards.")
+                reg_auto_match = False
             with st.expander("Anything else? (optional)"):
                 reg_interest = st.text_area("A note for the organisers", key="signup_note", height=80)
             submitted = st.form_submit_button(
@@ -1262,7 +1286,11 @@ def _render_find_team(email, me):
         '<p class="hub-status">You are not in a team yet. Choose one of the options below.</p>',
         unsafe_allow_html=True,
     )
-    _render_auto_match_setting(email, me)
+    if EVENT_CONFIG["allocation_open"]:
+        _render_auto_match_setting(email, me)
+    else:
+        st.caption("Random team allocation has closed. Join a recruiting team, start your own, "
+                   "or go solo to compete.")
     join_tab, friend_tab, start_tab, solo_tab = st.tabs(
         ["Open teams", "Friend's team", "Start a team", "Go solo"]
     )

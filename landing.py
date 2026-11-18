@@ -22,6 +22,7 @@ st.markdown(f"<style>{css_path.read_text()}</style>", unsafe_allow_html=True)
 
 from event_sections import (
     render_hero,
+    render_competing_teams,
     render_stats,
     render_features,
     render_timeline,
@@ -33,10 +34,11 @@ from event_sections import (
     render_partners,
     render_footer,
 )
-from components import render_registration, render_team_formation, render_registered_teams
+from components import render_registration, render_team_formation
 
 render_hero()
 render_stats()
+render_competing_teams()
 render_features()
 render_timeline()
 render_quote_lab()
@@ -52,7 +54,6 @@ if EVENT_CONFIG["registration_open"]:
 
         try:
             render_team_formation()
-            render_registered_teams()
         except STORAGE_ERRORS:
             st.error("The Team Hub cannot reach registration storage. Please try again later.")
 render_partners()

@@ -6,7 +6,7 @@ import random
 import streamlit as st
 
 from event_config import EVENT_CONFIG
-from components import get_registration_stats
+from components import get_registration_stats, _get_all_named_teams
 from sheets_store import STORAGE_ERRORS
 
 
@@ -20,7 +20,12 @@ def _section_heading(label, title, description=""):
 
 
 def render_hero():
-    registration_label = "Registration open" if EVENT_CONFIG["registration_open"] else "Coming soon"
+    if not EVENT_CONFIG["registration_open"]:
+        registration_label = "Coming soon"
+    elif EVENT_CONFIG["allocation_open"]:
+        registration_label = "Registration open"
+    else:
+        registration_label = "Late registration open"
     st.html(
         f"""
 <nav class="site-nav" aria-label="Main navigation">
@@ -29,6 +34,7 @@ def render_hero():
     <div class="nav-links"><a href="#challenge">The challenge</a><a href="#how-it-works">How it works</a>
     <a href="#prizes">Prizes</a><a href="#tickets">Tickets</a><a href="#team-hub">Find a team</a><a class="nav-cta" href="#register">Register <span aria-hidden="true">↗</span></a></div>
 </nav>
+{_late_registration_alert_html()}
 <section class="hero" id="top" aria-label="AI Market-Making Hackathon 2026">
     <div class="hero-copy">
         <p class="eyebrow"><span class="status-dot"></span> {registration_label} / November 2026</p>
@@ -48,6 +54,58 @@ def render_hero():
     </aside>
 </section>
 """,
+    )
+
+
+def _late_registration_alert_html():
+    """Banner under the navigation for visitors arriving after random allocation has closed."""
+    if not EVENT_CONFIG["registration_open"] or EVENT_CONFIG["allocation_open"]:
+        return ""
+    tickets = escape(EVENT_CONFIG["tickets_url"], quote=True)
+    return f"""
+<section class="late-alert" role="status" aria-label="Late registration">
+    <div class="late-alert-copy">
+        <p class="eyebrow"><span class="status-dot"></span> Late registration is open</p>
+        <h2>It's not too late to compete for the <span class="market-accent">{_prize_pot_label()}</span> prize pot.</h2>
+        <p>Register until <strong>{escape(EVENT_CONFIG["late_registration_until"])}</strong> as a team or solo.
+        Random team allocation has closed, and every team member still needs a ticket.</p>
+    </div>
+    <div class="late-alert-actions">
+        <a class="button button-blue" href="#register">Register now <span aria-hidden="true">↗</span></a>
+        <a class="button late-alert-secondary" href="{tickets}" target="_blank" rel="noopener noreferrer">Get tickets <span aria-hidden="true">↗</span></a>
+    </div>
+</section>
+"""
+
+
+def render_competing_teams():
+    """The public board of competing teams, shown near the top of the page."""
+    try:
+        teams = _get_all_named_teams()
+        _, people = get_registration_stats()
+    except STORAGE_ERRORS:
+        return
+    if not teams:
+        return
+    def tile(name, size):
+        label = "Solo" if size == 1 else f"{size} members"
+        return f'<li class="team-tile"><strong>{escape(name)}</strong><span>{label}</span></li>'
+
+    cards = "".join(
+        tile(name, info["size"])
+        for name, info in sorted(teams.items(), key=lambda item: item[0].casefold())
+    )
+    st.markdown(
+        f"""
+<section class="competing-teams" id="teams" aria-label="The competing teams">
+    <div class="competing-head">
+        <div><p class="eyebrow">The competing teams</p>
+        <h2>{len(teams)} teams. {people:,} people. One market.</h2></div>
+        <p class="competing-pot"><span>Prize pot</span><strong>{_prize_pot_label()}</strong></p>
+    </div>
+    <ul class="team-board">{cards}</ul>
+</section>
+""", unsafe_allow_html=True,
     )
 
 
@@ -538,11 +596,18 @@ def render_who():
     and machine learning is a great starting point. Finance experience isn't required.</p>
     <p>Already have a team? One representative can register your group of 2&nbsp;to&nbsp;4.
     Prefer to go it alone? You can compete solo as a team of one.
-    Or register as looking for a team: join or start one in the Team Hub,
-    or we’ll match you with teammates after {escape(EVENT_CONFIG["team_match_deadline"])}.</p></div>
+    {_who_matching_sentence()}</p></div>
 </section>
 """, unsafe_allow_html=True,
     )
+
+
+def _who_matching_sentence():
+    if EVENT_CONFIG["allocation_open"]:
+        return ("Or register as looking for a team: join or start one in the Team Hub, "
+                f"or we’ll match you with teammates after {escape(EVENT_CONFIG['team_match_deadline'])}.")
+    return ("Team allocation has closed, but you can still join a team that’s recruiting in the Team Hub. "
+            f"Late registration is open until {escape(EVENT_CONFIG['late_registration_until'])}.")
 
 
 def _prize_pot_label():
@@ -559,7 +624,8 @@ PRIZE_DESCRIPTIONS = {
 def render_tickets():
     url = escape(EVENT_CONFIG["tickets_url"], quote=True)
     steps = (
-        ("Register your team on this site", "One registration per team. On your own? Register as looking for a team."),
+        ("Register your team on this site", "One registration per team. On your own? "
+         + ("Register as looking for a team." if EVENT_CONFIG["allocation_open"] else "Register as a team of one.")),
         ("Log in to QMSU", "Tickets only appear once you log in. Not a Queen Mary student? Register as a guest first."),
         ("Everyone buys their own ticket", "Each team member pays individually. Have a discount code from your society? Enter it when you pay."),
     )
@@ -590,6 +656,8 @@ def render_tickets():
 
 
 def render_team_matching():
+    if not EVENT_CONFIG["allocation_open"]:
+        return
     deadline = escape(EVENT_CONFIG["team_match_deadline"])
     opening = escape(EVENT_CONFIG["opening_date"])
     points = (

@@ -111,10 +111,17 @@ class SheetsStoreTests(unittest.TestCase):
 
 
 class RegistrationFormTests(unittest.TestCase):
+    allocation_open = True  # these tests cover the "Looking for a team" flow
+
     def app(self, store):
+        from event_config import EVENT_CONFIG
+
         self.mock_store = patch("components._get_registration_store", return_value=store)
         self.mock_store.start()
         self.addCleanup(self.mock_store.stop)
+        config = patch.dict(EVENT_CONFIG, {"allocation_open": self.allocation_open})
+        config.start()
+        self.addCleanup(config.stop)
         return AppTest.from_string(
             "from components import render_registration\nrender_registration()"
         ).run()
@@ -242,11 +249,37 @@ class RegistrationFormTests(unittest.TestCase):
             app = AppTest.from_file(str(Path(__file__).parents[1] / "landing.py")).run()
         self.assertEqual(len(app.exception), 0)
         self.assertEqual(len(app.get("form")), 1)
-        store.assert_called_once()
+        store.assert_called()
         self.assertIn(
             "Live registration counts are temporarily unavailable.",
             [caption.value for caption in app.caption],
         )
+
+
+class LateRegistrationFormTests(RegistrationFormTests):
+    """After random allocation: register as a team or go solo, but not "looking for a team"."""
+
+    allocation_open = False
+
+    def test_individual_registration_reaches_account_store(self):
+        store = Mock()
+        store.get_all_values.return_value = [list(REGISTRATION_HEADERS)]
+        app = self.app(store)
+        self.assertNotIn("Looking for a team", app.selectbox(key="signup_team_size").options)
+        self.assertEqual(len(app.get("checkbox")), 0)
+        app = self.fill(app, "Going solo (team of one)", team="Late Wolf")
+        app.button[0].click().run()
+        self.assertEqual(len(app.success), 1)
+        self.assertEqual(store.append_row.call_args.args[0][5:7], ["Late Wolf", "1"])
+
+    def fill(self, app, team_size="Going solo (team of one)", team=""):
+        return super().fill(app, team_size, team)
+
+    # The parent's "looking for a team" scenarios do not apply once allocation has closed.
+    test_opting_out_of_matching_is_saved = None
+    test_duplicate_email_does_not_append = None
+    test_duplicate_student_id_does_not_append = None
+    test_failed_remote_write_is_not_reported_as_success = None
 
 
 if __name__ == "__main__":

@@ -298,6 +298,26 @@ h1, h2, h3, p { overflow-wrap: break-word; }
 .st-key-team_hub { margin-bottom: 40px; }
 .st-key-team_hub [data-testid="stTab"] p { font-size: 14px; font-weight: 600; }
 .board-heading { margin-top: 20px; }
+.late-alert { display: flex; align-items: center; justify-content: space-between; gap: 32px; margin: 28px 0 0; padding: 26px 30px; background: linear-gradient(120deg, #16263e, #101823 65%); border: 1px solid #347ce6; border-radius: 12px; box-shadow: 0 0 0 4px rgba(22, 119, 255, .08); }
+.late-alert .eyebrow { margin-bottom: 10px; }
+.late-alert h2 { font-size: clamp(22px, 2.4vw, 30px) !important; font-weight: 700; letter-spacing: -.03em; line-height: var(--lh-tight); margin: 0 0 10px; padding: 0; }
+.late-alert h2 .market-accent { color: var(--accent); }
+.late-alert-copy p:not(.eyebrow) { color: var(--text-secondary); font-size: var(--fs-base) !important; line-height: var(--lh-body); margin: 0; }
+.late-alert-copy strong { color: var(--text); }
+.late-alert-actions { display: flex; flex-direction: column; gap: 10px; flex: 0 0 auto; }
+.late-alert-secondary { border: 1px solid #4d6585; color: var(--text) !important; }
+.late-alert-secondary:hover { border-color: var(--accent); }
+.competing-teams { margin: 0 0 86px; }
+.competing-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.competing-head .eyebrow { margin-bottom: 10px; }
+.competing-head h2 { font-size: clamp(28px, 3.1vw, 38px) !important; font-weight: 700; letter-spacing: -.035em; line-height: var(--lh-tight); margin: 0; padding: 0; }
+.competing-pot { display: flex; flex-direction: column; align-items: flex-end; margin: 0; }
+.competing-pot span { color: var(--text-muted); font-size: var(--fs-xs); letter-spacing: .1em; text-transform: uppercase; }
+.competing-pot strong { color: var(--accent); font-size: 40px; font-weight: 700; letter-spacing: -.04em; line-height: 1.1; }
+.team-board { list-style: none; padding: 0 !important; margin: 0 !important; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.team-tile { margin: 0 !important; padding: 14px 16px !important; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; display: flex; flex-direction: column; gap: 2px; }
+.team-tile strong { color: var(--text); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.team-tile span { color: var(--text-muted); font-size: 13px; }
 .ticket-layout { display: grid; grid-template-columns: 1fr 1.25fr; gap: 40px; margin-bottom: 86px; }
 .ticket-steps .button { margin-top: 18px; }
 .ticket-layout .eyebrow { margin-bottom: 14px; }
@@ -425,6 +445,15 @@ h1, h2, h3, p { overflow-wrap: break-word; }
     .form-title h3 { font-size: 20px !important; }
 
     .hub-steps { gap: 0; }
+    .late-alert { flex-direction: column; align-items: stretch; gap: 18px; padding: 20px 18px; }
+    .late-alert-actions .button { justify-content: center; }
+    .competing-teams { margin-bottom: 56px; }
+    .competing-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .competing-pot { align-items: flex-start; }
+    .competing-pot strong { font-size: 32px; }
+    .team-board { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .team-tile { padding: 10px 12px !important; }
+    .team-tile strong { font-size: 14px; }
     .ticket-layout { gap: 24px; margin-bottom: 56px; }
     .ticket-grid { grid-template-columns: 1fr; }
     .ticket-who { min-height: 0; }
